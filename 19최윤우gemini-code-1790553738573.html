@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20단계 무기 강화 게임 (행운의 인형 & 불사의 토템)</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.85);
+            --border-color: #334155;
+            --accent-gold: #f59e0b;
+            --accent-cyan: #06b6d4;
+            --text-light: #f8fafc;
+            --text-dim: #94a3b8;
+            --danger: #ef4444;
+            --success: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 900px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+
+        @media (min-width: 768px) {
+            .game-container {
+                grid-template-columns: 1.1fr 0.9fr;
+            }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .gold-display {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Weapon Display Area with Canvas */
+        .weapon-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 15px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 270px;
+        }
+
+        canvas#swordCanvas {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 0 12px rgba(255,255,255,0.25));
+        }
+
+        .weapon-level {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 4px 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+
+        .weapon-name {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .chance-badge {
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        /* Lucky Doll Toggle Area */
+        .doll-use-container {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px dashed rgba(245, 158, 11, 0.4);
+            border-radius: 8px;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #fbbf24;
+            cursor: pointer;
+        }
+
+        .doll-use-container input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-gold);
+        }
+
+        /* Buttons & Actions */
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn:not(:disabled):active {
+            transform: scale(0.97);
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            grid-column: span 2;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-enhance {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            grid-column: span 2;
+            padding: 14px;
+            font-size: 1.05rem;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-sell {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-totem {
+            background: linear-gradient(135deg, #a855f7, #7e22ce);
+            color: white;
+            grid-column: span 2;
+            padding: 12px;
+            animation: pulse-purple 2s infinite;
+        }
+
+        .btn-godly {
+            background: linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6);
+            background-size: 200% 200%;
+            animation: gradient-shift 3s ease infinite;
+            color: white;
+            grid-column: span 2;
+            padding: 14px;
+            font-size: 1.05rem;
+            box-shadow: 0 0 15px rgba(217, 70, 239, 0.5);
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes pulse-purple {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(168, 85, 247, 0); }
+        }
+
+        /* Shop & Logs */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-light);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shop-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shop-info h4 { font-size: 0.95rem; margin-bottom: 2px; }
+        .shop-info p { font-size: 0.8rem; color: var(--text-dim); }
+
+        .inventory-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-top: 5px;
+        }
+
+        .inv-badge {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.75rem;
+        }
+
+        .inv-badge span {
+            display: block;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--accent-cyan);
+            margin-top: 2px;
+        }
+
+        .log-box {
+            background: #090d16;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .log-item { line-height: 1.3; }
+        .log-success { color: var(--success); }
+        .log-fail { color: var(--danger); font-weight: bold; }
+        .log-restore { color: #c084fc; font-weight: bold; }
+        .log-info { color: var(--accent-cyan); }
+
+        .enhance-shake {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(3px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-5px, 0, 0); }
+            40%, 60% { transform: translate3d(5px, 0, 0); }
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <!-- Main Game Panel -->
+    <div class="panel">
+        <div class="header">
+            <h2>⚔️ 무기 강화소</h2>
+            <div class="gold-display">💰 <span id="gold-val">0</span> G</div>
+        </div>
+
+        <!-- Weapon Card & Canvas Drawing -->
+        <div class="weapon-card" id="weapon-card">
+            <canvas id="swordCanvas" width="180" height="180"></canvas>
+            <div class="weapon-level" id="weapon-level-badge">LV. 1</div>
+            <div class="weapon-name" id="weapon-name">막대기</div>
+            <div class="chance-badge" id="chance-badge">성공 확률: 100% (+0% 캐릭터)</div>
+        </div>
+
+        <!-- Lucky Doll Use Toggle -->
+        <label class="doll-use-container" id="doll-toggle-box">
+            <span>🧸 행운의 인형 사용하기 (성공 확률 +30%)</span>
+            <input type="checkbox" id="chk-use-doll">
+        </label>
+
+        <!-- Buttons -->
+        <div class="btn-group">
+            <button class="btn btn-gold" id="btn-mine">⛏️ 광산에서 골드 채굴하기 (+<span id="mine-gold-val">10</span>G)</button>
+            <button class="btn btn-enhance" id="btn-enhance">⚡ 강화하기 (비용: 50G)</button>
+            <button class="btn btn-godly hidden" id="btn-godly">🌌 [창조의 검] 도전 (성공 확률 20%)</button>
+            <button class="btn btn-totem hidden" id="btn-totem">🗿 불사의 토템 사용 (LV.<span id="totem-lvl">0</span> 복구)</button>
+            <button class="btn btn-sell" id="btn-sell">💰 무기 판매 (50G)</button>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="section-title">📜 강화 기록</div>
+        <div class="log-box" id="log-box">
+            <div class="log-item log-info">게임을 시작합니다. 실패 시 1단계(막대기)로 초기화됩니다!</div>
+        </div>
+    </div>
+
+    <!-- Shop Panel -->
+    <div class="panel">
+        <div class="section-title">🏪 상점 및 소지품</div>
+
+        <!-- Character Shop -->
+        <div class="shop-item">
+            <div class="shop-info">
+                <h4>👤 캐릭터 강화 (<span id="char-lvl">1</span>/10 단계)</h4>
+                <p>구매 시 기본 확률 +1% 보너스</p>
+            </div>
+            <button class="btn btn-sell" id="btn-buy-char" style="background: rgba(6, 182, 212, 0.15); color: #22d3ee; border-color: rgba(6, 182, 212, 0.3);">
+                구매 (<span id="char-cost">100</span>G)
+            </button>
+        </div>
+
+        <!-- Lucky Doll Shop -->
+        <div class="shop-item">
+            <div class="shop-info">
+                <h4>🧸 행운의 인형 (1회용)</h4>
+                <p>원하는 강화 시 확률 +30% 증가</p>
+            </div>
+            <button class="btn btn-sell" id="btn-buy-doll" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.3);">
+                구매 (67,777G)
+            </button>
+        </div>
+
+        <!-- Totem Shop -->
+        <div class="shop-item">
+            <div class="shop-info">
+                <h4>🗿 불사의 토템 (1회용)</h4>
+                <p>실패 시(LV.1 하락) 방금 있던 단계로 복구</p>
+            </div>
+            <button class="btn btn-sell" id="btn-buy-totem" style="background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: rgba(168, 85, 247, 0.3);">
+                구매 (69,999G)
+            </button>
+        </div>
+
+        <!-- Inventory Status -->
+        <div class="inventory-box">
+            <div class="inv-badge">
+                캐릭터 보너스
+                <span id="stat-char-bonus">+0%</span>
+            </div>
+            <div class="inv-badge">
+                행운의 인형
+                <span id="stat-doll-count">0 개</span>
+            </div>
+            <div class="inv-badge">
+                불사의 토템
+                <span id="stat-totem-count">0 개</span>
+            </div>
+        </div>
+
+        <!-- Book Guide -->
+        <div class="section-title" style="margin-top: 10px;">🗡️ 무기 도감</div>
+        <div class="log-box" style="height: 150px;">
+            <div class="log-item">1. 막대기 (100%) / 2. 나무검 (95%) / 3. 돌 검 (90%)</div>
+            <div class="log-item">4. 철 검 (85%) / 5. 금 검 (80%) / 6. 다이아 검 (75%)</div>
+            <div class="log-item">7. 네더라이트 검 (70%) / 8. 드래곤 슬레이어 (65%)</div>
+            <div class="log-item">9. 천상의 성검 (60%) / 10. 멸망의 대검 (55%)</div>
+            <div class="log-item">11. 시공의 블레이드 (50%) / 12. 차원 파괴자 (45%)</div>
+            <div class="log-item">13. 은하수의 빛 (40%) / 14. 카오스 칼라미티 (35%)</div>
+            <div class="log-item">15. 심연의 칼날 (30%) / 16. 태초의 엑스칼리버 (25%)</div>
+            <div class="log-item">17. 신살자의 검 (20%) / 18. 절대존재의 의지 (15%)</div>
+            <div class="log-item">19. 우주창조의 무기 (12%) / 20. 신화의 결정체 (11%)</div>
+            <div class="log-item log-info">★ 히든: 창조의 검 (20% 확률 도전)</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 20 Weapons Metadata
+    const WEAPONS = [
+        { level: 1, name: "막대기", color: "#8b5cf6", baseChance: 100, cost: 50, bladeColor: "#854d0e", guardColor: "#a16207" },
+        { level: 2, name: "나무검", color: "#a16207", baseChance: 95, cost: 100, bladeColor: "#b45309", guardColor: "#78350f" },
+        { level: 3, name: "돌 검", color: "#64748b", baseChance: 90, cost: 200, bladeColor: "#94a3b8", guardColor: "#475569" },
+        { level: 4, name: "철 검", color: "#cbd5e1", baseChance: 85, cost: 400, bladeColor: "#e2e8f0", guardColor: "#64748b" },
+        { level: 5, name: "금 검", color: "#f59e0b", baseChance: 80, cost: 800, bladeColor: "#fbbf24", guardColor: "#d97706" },
+        { level: 6, name: "다이아 검", color: "#06b6d4", baseChance: 75, cost: 1500, bladeColor: "#22d3ee", guardColor: "#0891b2" },
+        { level: 7, name: "네더라이트 검", color: "#475569", baseChance: 70, cost: 3000, bladeColor: "#334155", guardColor: "#1e293b" },
+        { level: 8, name: "드래곤 슬레이어", color: "#ef4444", baseChance: 65, cost: 5000, bladeColor: "#f87171", guardColor: "#991b1b" },
+        { level: 9, name: "천상의 성검", color: "#38bdf8", baseChance: 60, cost: 8000, bladeColor: "#bae6fd", guardColor: "#0284c7" },
+        { level: 10, name: "멸망의 대검", color: "#f97316", baseChance: 55, cost: 12000, bladeColor: "#fb923c", guardColor: "#c2410c" },
+        { level: 11, name: "시공의 블레이드", color: "#818cf8", baseChance: 50, cost: 18000, bladeColor: "#a5b4fc", guardColor: "#4338ca" },
+        { level: 12, name: "차원 파괴자", color: "#a855f7", baseChance: 45, cost: 25000, bladeColor: "#c084fc", guardColor: "#7e22ce" },
+        { level: 13, name: "은하수의 빛", color: "#ec4899", baseChance: 40, cost: 35000, bladeColor: "#f472b6", guardColor: "#be185d" },
+        { level: 14, name: "카오스 칼라미티", color: "#f43f5e", baseChance: 35, cost: 50000, bladeColor: "#fb7185", guardColor: "#be123c" },
+        { level: 15, name: "심연의 칼날", color: "#6366f1", baseChance: 30, cost: 70000, bladeColor: "#818cf8", guardColor: "#3730a3" },
+        { level: 16, name: "태초의 엑스칼리버", color: "#eab308", baseChance: 25, cost: 100000, bladeColor: "#fef08a", guardColor: "#ca8a04" },
+        { level: 17, name: "신살자의 검", color: "#14b8a6", baseChance: 20, cost: 150000, bladeColor: "#2dd4bf", guardColor: "#0f766e" },
+        { level: 18, name: "절대존재의 의지", color: "#f472b6", baseChance: 15, cost: 220000, bladeColor: "#fbcfe8", guardColor: "#9d174d" },
+        { level: 19, name: "우주창조의 무기", color: "#38bdf8", baseChance: 12, cost: 300000, bladeColor: "#e0f2fe", guardColor: "#0369a1" },
+        { level: 20, name: "신화의 결정체", color: "#d946ef", baseChance: 11, cost: 500000, bladeColor: "#f5d0fe", guardColor: "#a21caf" },
+        { level: 21, name: "창조의 검", color: "#ffffff", baseChance: 20, cost: 1000000, bladeColor: "#ffffff", guardColor: "#f59e0b" }
+    ];
+
+    // State Variables
+    let gold = 500;
+    let currentLevel = 1;
+    let charLevel = 1;
+    let dollsOwned = 0;   // 행운의 인형 (67,777G)
+    let totemsOwned = 0;  // 불사의 토템 (69,999G)
+    let savedLevelForTotem = null; // 토템으로 복구 가능한 저장 레벨
+
+    // DOM References
+    const canvas = document.getElementById('swordCanvas');
+    const ctx = canvas.getContext('2d');
+    const elGold = document.getElementById('gold-val');
+    const elWeaponCard = document.getElementById('weapon-card');
+    const elWeaponLevel = document.getElementById('weapon-level-badge');
+    const elWeaponName = document.getElementById('weapon-name');
+    const elChanceBadge = document.getElementById('chance-badge');
+
+    const elChkDoll = document.getElementById('chk-use-doll');
+    const elBtnMine = document.getElementById('btn-mine');
+    const elMineGoldVal = document.getElementById('mine-gold-val');
+    const elBtnEnhance = document.getElementById('btn-enhance');
+    const elBtnGodly = document.getElementById('btn-godly');
+    const elBtnTotem = document.getElementById('btn-totem');
+    const elBtnSell = document.getElementById('btn-sell');
+
+    const elBtnBuyChar = document.getElementById('btn-buy-char');
+    const elBtnBuyDoll = document.getElementById('btn-buy-doll');
+    const elBtnBuyTotem = document.getElementById('btn-buy-totem');
+
+    const elCharLvl = document.getElementById('char-lvl');
+    const elCharCost = document.getElementById('char-cost');
+    const elStatCharBonus = document.getElementById('stat-char-bonus');
+    const elStatDollCount = document.getElementById('stat-doll-count');
+    const elStatTotemCount = document.getElementById('stat-totem-count');
+    const elTotemLvl = document.getElementById('totem-lvl');
+    const elLogBox = document.getElementById('log-box');
+
+    // Canvas Sword Drawing Function
+    function drawSword(lvl) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const w = WEAPONS[lvl - 1];
+
+        ctx.save();
+        ctx.translate(90, 90);
+        ctx.rotate(-Math.PI / 4);
+
+        if (lvl === 1) {
+            ctx.fillStyle = w.bladeColor;
+            ctx.beginPath();
+            ctx.roundRect(-7, -55, 14, 110, 5);
+            ctx.fill();
+            ctx.strokeStyle = "#451a03";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        } else {
+            if (lvl >= 8) {
+                ctx.shadowColor = w.color;
+                ctx.shadowBlur = 10 + (lvl * 1.2);
+            }
+
+            // 1. 검 손잡이
+            ctx.fillStyle = "#27272a";
+            ctx.fillRect(-5, 30, 10, 32);
+            
+            ctx.fillStyle = w.guardColor;
+            ctx.beginPath();
+            ctx.arc(0, 64, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. 검 코울
+            ctx.fillStyle = w.guardColor;
+            ctx.beginPath();
+            ctx.roundRect(-22, 24, 44, 8, 3);
+            ctx.fill();
+
+            // 3. 검 날
+            ctx.fillStyle = w.bladeColor;
+            ctx.beginPath();
+            ctx.moveTo(-9, 24);
+            ctx.lineTo(-8, -45);
+            ctx.lineTo(0, -70);
+            ctx.lineTo(8, -45);
+            ctx.lineTo(9, 24);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 22);
+            ctx.lineTo(0, -62);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    function getCharCost(lvl) {
+        return 100 + (lvl - 1) * 1000;
+    }
+
+    // Mine Gold per Click: 1단계 10G, 2단계 20G ...
+    function getMiningYield() {
+        return 10 + (currentLevel - 1) * 10;
+    }
+
+    function getSuccessRate(lvl, isDollUsed = false) {
+        let base = (lvl > 20) ? 20 : WEAPONS[lvl - 1].baseChance;
+        const charBonus = charLevel - 1;
+        const dollBonus = isDollUsed ? 30 : 0;
+        return Math.min(100, base + charBonus + dollBonus);
+    }
+
+    function addLog(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `log-item log-${type}`;
+        div.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        elLogBox.appendChild(div);
+        elLogBox.scrollTop = elLogBox.scrollHeight;
+    }
+
+    function updateUI() {
+        const weapon = WEAPONS[currentLevel - 1];
+
+        drawSword(currentLevel);
+
+        // Gold & Mining
+        elGold.textContent = gold.toLocaleString();
+        const miningYield = getMiningYield();
+        elMineGoldVal.textContent = miningYield.toLocaleString();
+
+        // Weapon Display
+        elWeaponLevel.textContent = `LV. ${weapon.level}`;
+        elWeaponName.textContent = weapon.name;
+        elWeaponName.style.color = weapon.color;
+        elWeaponCard.style.borderColor = weapon.color;
+
+        const charBonus = charLevel - 1;
+        const isDollChecked = elChkDoll.checked && dollsOwned > 0;
+        const totalChance = getSuccessRate(currentLevel, isDollChecked);
+        
+        let chanceStr = `성공 확률: ${totalChance}% (+${charBonus}% 캐릭터`;
+        if (isDollChecked) chanceStr += `, +30% 인형`;
+        chanceStr += `)`;
+        elChanceBadge.textContent = chanceStr;
+
+        // Doll Checkbox Control
+        if (dollsOwned === 0) {
+            elChkDoll.checked = false;
+            elChkDoll.disabled = true;
+        } else {
+            elChkDoll.disabled = false;
+        }
+
+        // Character Shop
+        elCharLvl.textContent = charLevel;
+        const charCost = getCharCost(charLevel);
+        elCharCost.textContent = charCost.toLocaleString();
+        elStatCharBonus.textContent = `+${charBonus}%`;
+
+        if (charLevel >= 10) {
+            elBtnBuyChar.disabled = true;
+            elBtnBuyChar.textContent = "최대 단계";
+        } else {
+            elBtnBuyChar.disabled = gold < charCost;
+            elBtnBuyChar.textContent = `구매 (${charCost.toLocaleString()}G)`;
+        }
+
+        // Items Shop & Counts
+        elStatDollCount.textContent = `${dollsOwned} 개`;
+        elBtnBuyDoll.disabled = gold < 67777;
+
+        elStatTotemCount.textContent = `${totemsOwned} 개`;
+        elBtnBuyTotem.disabled = gold < 69999;
+
+        // Enhance & Godly Buttons
+        if (currentLevel === 20) {
+            elBtnEnhance.classList.add('hidden');
+            elBtnGodly.classList.remove('hidden');
+            elBtnGodly.disabled = gold < weapon.cost;
+            elBtnGodly.textContent = `🌌 [창조의 검] 도전 (비용: ${weapon.cost.toLocaleString()}G / 확률 ${totalChance}%)`;
+        } else if (currentLevel > 20) {
+            elBtnEnhance.classList.add('hidden');
+            elBtnGodly.classList.remove('hidden');
+            elBtnGodly.disabled = true;
+            elBtnGodly.textContent = "✨ 최고 존엄 [창조의 검] 달성! ✨";
+        } else {
+            elBtnEnhance.classList.remove('hidden');
+            elBtnGodly.classList.add('hidden');
+            elBtnEnhance.disabled = gold < weapon.cost;
+            elBtnEnhance.textContent = `⚡ 강화하기 (비용: ${weapon.cost.toLocaleString()}G)`;
+        }
+
+        // Totem Restoration Button Active Check
+        if (savedLevelForTotem !== null && totemsOwned > 0) {
+            elBtnTotem.classList.remove('hidden');
+            elTotemLvl.textContent = savedLevelForTotem;
+        } else {
+            elBtnTotem.classList.add('hidden');
+        }
+
+        const sellPrice = Math.floor(weapon.cost * 0.8);
+        elBtnSell.textContent = `💰 무기 판매 (${sellPrice.toLocaleString()}G)`;
+    }
+
+    // Event Listeners & Actions
+    elChkDoll.addEventListener('change', updateUI);
+
+    // 1. Mine Gold
+    elBtnMine.addEventListener('click', () => {
+        gold += getMiningYield();
+        updateUI();
+    });
+
+    // 2. Buy Character Level
+    elBtnBuyChar.addEventListener('click', () => {
+        const cost = getCharCost(charLevel);
+        if (gold >= cost && charLevel < 10) {
+            gold -= cost;
+            charLevel++;
+            addLog(`캐릭터 강화 성공! LV.${charLevel} (+${charLevel - 1}% 확률 보너스)`, 'success');
+            updateUI();
+        }
+    });
+
+    // 3. Buy Lucky Doll (67,777G)
+    elBtnBuyDoll.addEventListener('click', () => {
+        if (gold >= 67777) {
+            gold -= 67777;
+            dollsOwned++;
+            addLog(`🧸 행운의 인형을 구매했습니다. (소지량: ${dollsOwned}개)`, 'info');
+            updateUI();
+        }
+    });
+
+    // 4. Buy Immortal Totem (69,999G)
+    elBtnBuyTotem.addEventListener('click', () => {
+        if (gold >= 69999) {
+            gold -= 69999;
+            totemsOwned++;
+            addLog(`🗿 불사의 토템을 구매했습니다. (소지량: ${totemsOwned}개)`, 'info');
+            updateUI();
+        }
+    });
+
+    // 5. Enhance Weapon Logic
+    function handleEnhance(isGodlyChallenge = false) {
+        const weapon = WEAPONS[currentLevel - 1];
+        if (gold < weapon.cost) return;
+
+        gold -= weapon.cost;
+
+        // Check & Consume Lucky Doll
+        const isDollUsed = elChkDoll.checked && dollsOwned > 0;
+        if (isDollUsed) {
+            dollsOwned--;
+            elChkDoll.checked = false; // Reset toggle
+            addLog(`🧸 행운의 인형을 사용했습니다! (이번 강화 성공 확률 +30% 적용)`, 'info');
+        }
+
+        // Visual Shake
+        elWeaponCard.classList.remove('enhance-shake');
+        void elWeaponCard.offsetWidth;
+        elWeaponCard.classList.add('enhance-shake');
+
+        const successRate = getSuccessRate(currentLevel, isDollUsed);
+        const rand = Math.random() * 100;
+
+        if (rand < successRate) {
+            // SUCCESS
+            if (isGodlyChallenge) {
+                currentLevel = 21;
+                savedLevelForTotem = null;
+                addLog(`🎆 [대성공!] 확률을 뚫고 신화의 너머 [창조의 검]을 제작하셨습니다!`, 'success');
+                alert("🎉 축하합니다! 최종 보너스 [창조의 검]에 성공하여 모든 단계를 완벽 제패하셨습니다!");
+            } else {
+                currentLevel++;
+                savedLevelForTotem = null;
+                addLog(`⚡ 강화 성공! [${WEAPONS[currentLevel - 1].name}] (LV.${currentLevel}) 달성!`, 'success');
+            }
+        } else {
+            // FAIL - Reset to LV. 1 (Stick)
+            const failedLevel = currentLevel;
+            currentLevel = 1;
+
+            if (totemsOwned > 0) {
+                savedLevelForTotem = failedLevel;
+                addLog(`💥 강화 실패! [${weapon.name}]이(가) 파괴되어 LV.1 막대기로 초기화되었습니다... (🗿 불사의 토템으로 LV.${savedLevelForTotem} 복구 가능!)`, 'fail');
+            } else {
+                addLog(`💥 강화 실패! [${weapon.name}]이(가) 파괴되어 LV.1 막대기로 초기화되었습니다...`, 'fail');
+            }
+        }
+
+        updateUI();
+    }
+
+    elBtnEnhance.addEventListener('click', () => handleEnhance(false));
+    elBtnGodly.addEventListener('click', () => handleEnhance(true));
+
+    // 6. Restore Level with Totem
+    elBtnTotem.addEventListener('click', () => {
+        if (totemsOwned > 0 && savedLevelForTotem !== null) {
+            totemsOwned--;
+            currentLevel = savedLevelForTotem;
+            addLog(`🗿 불사의 토템을 사용하여 LV.${currentLevel} [${WEAPONS[currentLevel - 1].name}](으)로 즉시 복구했습니다!`, 'restore');
+            savedLevelForTotem = null;
+            updateUI();
+        }
+    });
+
+    // 7. Sell Weapon
+    elBtnSell.addEventListener('click', () => {
+        const weapon = WEAPONS[currentLevel - 1];
+        const sellPrice = Math.floor(weapon.cost * 0.8);
+        gold += sellPrice;
+        addLog(`💰 [${weapon.name}]을(를) ${sellPrice.toLocaleString()}G에 판매했습니다.`, 'info');
+        currentLevel = 1;
+        savedLevelForTotem = null;
+        updateUI();
+    });
+
+    // Initial Load
+    updateUI();
+</script>
+
+</body>
+</html>

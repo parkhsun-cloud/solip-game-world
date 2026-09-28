@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>강화게임</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Trebuchet MS', 'Malgun Gothic', sans-serif;
+    background: linear-gradient(180deg, #FFE9B3 0%, #B7E4FF 100%);
+    transition: background 0.8s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 12px 50px;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    color: #4a2f18;
+    text-shadow: 2px 2px 0 #fff;
+    font-size: 22px;
+    margin: 4px 0 2px;
+    text-align: center;
+  }
+
+  .sub {
+    color: #4a2f18;
+    font-weight: bold;
+    margin-bottom: 14px;
+    text-align: center;
+    font-size: 13px;
+    max-width: 320px;
+  }
+
+  .hud {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  .badge {
+    background: #8B5A2B;
+    border: 3px solid #5C3A18;
+    border-radius: 6px;
+    color: #FFE9B3;
+    padding: 5px 10px;
+    font-weight: bold;
+    font-size: 13px;
+  }
+
+  .stage {
+    width: 260px;
+    height: 280px;
+    border-radius: 16px;
+    border: 6px solid #9a9a9a;
+    background: radial-gradient(circle at 50% 40%, #ffffff 0%, #eaf6ff 80%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: visible;
+    box-shadow: 0 0 20px rgba(0,0,0,0.15);
+  }
+
+  .tierLabel {
+    position: absolute;
+    top: 10px;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    color: white;
+  }
+
+  #figureSvg {
+    width: 173px;
+    height: 196px;
+    overflow: visible;
+    transition: transform 0.2s ease;
+  }
+  #figureSvg.shake { animation: shake 0.4s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0) rotate(0); }
+    20% { transform: translateX(-10px) rotate(-6deg); }
+    40% { transform: translateX(10px) rotate(6deg); }
+    60% { transform: translateX(-8px) rotate(-4deg); }
+    80% { transform: translateX(8px) rotate(4deg); }
+  }
+  #figureSvg.pop { animation: pop 0.35s; }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+
+  .levelText {
+    margin-top: 2px;
+    font-size: 22px;
+    font-weight: bold;
+    color: #4a2f18;
+  }
+
+  #resultMsg {
+    min-height: 26px;
+    font-weight: bold;
+    font-size: 16px;
+    margin-top: 14px;
+    text-align: center;
+    color: #4a2f18;
+  }
+
+  .probRow {
+    margin-top: 6px;
+    color: #4a2f18;
+    font-size: 13px;
+    font-weight: bold;
+  }
+
+  #enhanceBtn {
+    margin-top: 16px;
+    background: linear-gradient(180deg,#63D7E0,#2f9aa3);
+    border: 3px solid #1c6b72;
+    color: #052b2e;
+    font-weight: bold;
+    font-size: 16px;
+    padding: 12px 26px;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2);
+  }
+  #enhanceBtn:active { transform: translateY(2px); box-shadow: none; }
+  #enhanceBtn:disabled { opacity: 0.6; cursor: default; }
+
+  #resetBtn {
+    margin-top: 10px;
+    background: transparent;
+    border: 2px solid #4a2f18;
+    color: #4a2f18;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .spark {
+    position: absolute;
+    font-size: 20px;
+    pointer-events: none;
+    animation: sparkFly 0.8s forwards;
+  }
+  @keyframes sparkFly {
+    0% { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.4); }
+  }
+
+  .smallBtn {
+    margin-top: 10px;
+    background: #8B5A2B;
+    border: 2px solid #5C3A18;
+    color: #FFE9B3;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .btnRow { display: flex; gap: 8px; }
+
+  .rainbow-skin { animation: hueSpin 2.5s linear infinite; }
+  @keyframes hueSpin {
+    from { filter: hue-rotate(0deg); }
+    to { filter: hue-rotate(360deg); }
+  }
+
+  .modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    padding: 16px;
+  }
+  .modalBox {
+    background: #FFF7E0;
+    border: 5px solid #8B5A2B;
+    border-radius: 14px;
+    padding: 18px;
+    max-width: 340px;
+    width: 100%;
+    max-height: 82vh;
+    overflow-y: auto;
+  }
+  .modalBox h2 { margin-top: 0; color: #4a2f18; text-align: center; font-size: 18px; }
+  .closeModalBtn {
+    display: block;
+    margin: 14px auto 0;
+    background: #4CAF50;
+    border: none;
+    color: white;
+    font-weight: bold;
+    padding: 8px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .dexGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .dexCell {
+    background: #ffffff;
+    border: 2px solid #cfa96a;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 2px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #4a2f18;
+    min-height: 70px;
+  }
+  .dexCell.locked { background: #e3e3e3; border-color: #bbb; color: #999; }
+
+  .shopRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 4px;
+    border-bottom: 1px solid #e0d0a0;
+  }
+  .shopSwatch {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid #4a2f18;
+    flex-shrink: 0;
+  }
+  .shopInfo { flex: 1; font-weight: bold; color: #4a2f18; font-size: 13px; }
+  .shopBtn {
+    background: #4a6fa5;
+    border: none;
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .shopBtn:disabled { opacity: 0.5; cursor: default; }
+</style>
+</head>
+<body>
+
+<h1>🗡️ 강화게임 🗡️</h1>
+<div class="sub">버튼을 눌러 확률에 도전하세요! 성공하면 무기가 점점 세지고, 실패하면 처음(+0)으로 돌아가요.</div>
+
+<div class="hud">
+  <div class="badge">✨ 현재: +<span id="level">0</span></div>
+  <div class="badge">🏆 최고 기록: +<span id="best">0</span></div>
+  <div class="badge">🎲 시도: <span id="tries">0</span></div>
+  <div class="badge">🪙 코인: <span id="coins">0</span></div>
+  <div class="badge">🌍 세계: <span id="worldNum">1</span></div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="tierLabel" id="tierLabel" style="background:#777;">일반</div>
+
+  <svg id="figureSvg" viewBox="-30 -50 230 260" xmlns="http://www.w3.org/2000/svg">
+    <text id="crownText" x="70" y="8" font-size="20" text-anchor="middle" style="display:none;">👑</text>
+    <!-- weapon, drawn behind the arm line so it looks held -->
+    <g id="weaponGroup"></g>
+    <!-- black stick figure (outline group can be recolored by skins) -->
+    <g id="figureBody">
+      <circle cx="70" cy="30" r="14" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      <line x1="70" y1="44" x2="70" y2="100" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+      <line x1="70" y1="60" x2="45" y2="88" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+      <line x1="70" y1="60" x2="100" y2="75" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+      <line x1="70" y1="100" x2="50" y2="150" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+      <line x1="70" y1="100" x2="90" y2="150" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <circle cx="65" cy="28" r="1.8" fill="#111111"/>
+    <circle cx="75" cy="28" r="1.8" fill="#111111"/>
+    <path d="M 63,35 Q 70,40 77,35" stroke="#111111" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </svg>
+
+  <div class="levelText">+<span id="levelBig">0</span></div>
+</div>
+
+<div class="probRow">성공 확률: <span id="probText">90</span>% <span id="bonusText"></span></div>
+<div id="resultMsg"></div>
+
+<button id="enhanceBtn">⚒️ 강화하기</button>
+<div class="btnRow">
+  <button id="dexBtn" class="smallBtn">📖 도감</button>
+  <button id="shopBtn" class="smallBtn">🛒 상점</button>
+</div>
+<button id="resetBtn">🔄 처음부터 다시</button>
+
+<div class="modalOverlay" id="dexOverlay">
+  <div class="modalBox">
+    <h2>📖 무기 도감</h2>
+    <div class="dexGrid" id="dexGrid"></div>
+    <button class="closeModalBtn" id="closeDexBtn">닫기</button>
+  </div>
+</div>
+
+<div class="modalOverlay" id="shopOverlay">
+  <div class="modalBox">
+    <button class="closeModalBtn" id="closeShopBtnTop" style="margin:0 0 10px auto;">닫기 ✕</button>
+    <h2 style="margin-top:0;">🛒 스킨 상점</h2>
+    <div class="sub" style="margin-bottom:8px;">강화에 성공하면 코인을 받아요! 코인으로 졸라맨 스킨을 사보세요.</div>
+    <div id="shopList"></div>
+    <button class="closeModalBtn" id="closeShopBtn">닫기</button>
+  </div>
+</div>
+
+<script>
+  const MAX_LEVEL = 15;
+  const TIERS = [
+    { max: 2,  name: '일반', color: '#9a9a9a' },
+    { max: 5,  name: '희귀', color: '#3b82f6' },
+    { max: 9,  name: '영웅', color: '#a855f7' },
+    { max: 12, name: '전설', color: '#f4c430' },
+    { max: 15, name: '신화', color: '#ff4b6e' },
+  ];
+
+  let level = 0;
+  let best = 0;
+  let tries = 0;
+  let busy = false;
+  let coins = 0;
+  let world = 1;
+
+  const WORLD_THEMES = [
+    'linear-gradient(180deg, #FFE9B3 0%, #B7E4FF 100%)', // 1 sand & sky
+    'linear-gradient(180deg, #C8F4C5 0%, #8BE0A0 100%)', // 2 forest
+    'linear-gradient(180deg, #FFD3E0 0%, #FF9EC4 100%)', // 3 blossom
+    'linear-gradient(180deg, #D9CCFF 0%, #B39CFF 100%)', // 4 lavender
+    'linear-gradient(180deg, #FFE0B3 0%, #FFB05C 100%)', // 5 sunset
+    'linear-gradient(180deg, #C5F0FF 0%, #7FD3E8 100%)', // 6 ocean
+    'linear-gradient(180deg, #F5F5F5 0%, #C9D6E3 100%)', // 7 snow
+    'linear-gradient(180deg, #FFF1C9 0%, #FFD24C 100%)', // 8 desert
+  ];
+
+  function applyWorldTheme(w) {
+    document.body.style.background = WORLD_THEMES[(w - 1) % WORLD_THEMES.length];
+  }
+  const unlocked = new Array(16).fill(false);
+  unlocked[0] = true;
+
+  const SKINS = [
+    { id: 'black',    name: '기본 검정', color: '#111111', cost: 0,    bonus: 0 },
+    { id: 'blue',     name: '파랑',      color: '#2563eb', cost: 120,  bonus: 1 },
+    { id: 'red',      name: '빨강',      color: '#dc2626', cost: 120,  bonus: 1 },
+    { id: 'green',    name: '초록',      color: '#16a34a', cost: 200,  bonus: 2 },
+    { id: 'orange',   name: '주황',      color: '#ea580c', cost: 200,  bonus: 2 },
+    { id: 'purple',   name: '보라',      color: '#9333ea', cost: 300,  bonus: 3 },
+    { id: 'sky',      name: '하늘색',    color: '#0ea5e9', cost: 300,  bonus: 3 },
+    { id: 'pink',     name: '분홍',      color: '#ec4899', cost: 400,  bonus: 4 },
+    { id: 'teal',     name: '청록',      color: '#0d9488', cost: 400,  bonus: 4 },
+    { id: 'brown',    name: '갈색',      color: '#92400e', cost: 520,  bonus: 5 },
+    { id: 'lime',     name: '연두',      color: '#65a30d', cost: 520,  bonus: 5 },
+    { id: 'silver',   name: '은색',      color: '#94a3b8', cost: 660,  bonus: 6 },
+    { id: 'navy',     name: '남색',      color: '#1e3a8a', cost: 660,  bonus: 6 },
+    { id: 'maroon',   name: '적갈색',    color: '#7f1d1d', cost: 800,  bonus: 7 },
+    { id: 'gold',     name: '골드',      color: '#d4a017', cost: 960,  bonus: 8 },
+    { id: 'emerald',  name: '에메랄드',  color: '#10b981', cost: 1120, bonus: 9 },
+    { id: 'obsidian', name: '흑요석',    color: '#4c1d95', cost: 1300, bonus: 10 },
+    { id: 'crystal',  name: '크리스탈',  color: '#67e8f9', cost: 1500, bonus: 12 },
+    { id: 'phoenix',  name: '불사조',    color: '#ff5722', cost: 1800, bonus: 16 },
+    { id: 'rainbow',  name: '무지개',    color: '#ff0000', cost: 2400, bonus: 20 },
+  ];
+  let ownedSkins = ['black'];
+  let currentSkin = 'black';
+
+  const levelEl = document.getElementById('level');
+  const levelBigEl = document.getElementById('levelBig');
+  const bestEl = document.getElementById('best');
+  const triesEl = document.getElementById('tries');
+  const coinsEl = document.getElementById('coins');
+  const worldNumEl = document.getElementById('worldNum');
+  const probText = document.getElementById('probText');
+  const bonusText = document.getElementById('bonusText');
+  const tierLabel = document.getElementById('tierLabel');
+  const resultMsg = document.getElementById('resultMsg');
+  const enhanceBtn = document.getElementById('enhanceBtn');
+  const stage = document.getElementById('stage');
+  const figureSvg = document.getElementById('figureSvg');
+  const figureBody = document.getElementById('figureBody');
+  const weaponGroup = document.getElementById('weaponGroup');
+  const crownText = document.getElementById('crownText');
+  const dexOverlay = document.getElementById('dexOverlay');
+  const shopOverlay = document.getElementById('shopOverlay');
+  const dexGrid = document.getElementById('dexGrid');
+  const shopList = document.getElementById('shopList');
+
+  function currentSkinBonus() {
+    const skin = SKINS.find(s => s.id === currentSkin);
+    return skin ? skin.bonus : 0;
+  }
+
+  function probAt(lv) {
+    return Math.min(99, Math.round(Math.max(10, 90 - lv * 6 - (world - 1) * 2) + currentSkinBonus()));
+  }
+
+  function tierAt(lv) {
+    return TIERS.find(t => lv <= t.max) || TIERS[TIERS.length - 1];
+  }
+
+  // 8 hand-drawn weapon silhouettes (not emoji). Levels 0-7 use the plain
+  // version, levels 8-15 reuse the same 8 shapes but add a sparkle and grow
+  // bigger/glowier, so every single enhancement still looks different.
+  const SHAPES = [
+    (c) => // 0 stick
+      '<rect x="0" y="-2.5" width="24" height="5" rx="2.5" fill="#a9702f" stroke="#5c3a18" stroke-width="1.5"/>' +
+      '<line x1="6" y1="-2" x2="3" y2="-7" stroke="#5c3a18" stroke-width="1.5" stroke-linecap="round"/>' +
+      '<line x1="14" y1="2.5" x2="16" y2="7" stroke="#5c3a18" stroke-width="1.5" stroke-linecap="round"/>',
+    (c) => // 1 dagger
+      '<polygon points="0,-4 18,-2 26,0 18,2 0,4" fill="' + c + '" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/>' +
+      '<rect x="-4" y="-6" width="4" height="12" rx="1.5" fill="#5c5c5c" stroke="#222" stroke-width="1.5"/>' +
+      '<rect x="-14" y="-2.5" width="10" height="5" rx="2" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>',
+    (c) => // 2 sword
+      '<polygon points="0,-6 34,-3.5 42,0 34,3.5 0,6" fill="' + c + '" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/>' +
+      '<rect x="-6" y="-9" width="6" height="18" rx="2" fill="#5c5c5c" stroke="#222" stroke-width="1.5"/>' +
+      '<rect x="-20" y="-3.5" width="14" height="7" rx="2" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>' +
+      '<circle cx="-22" cy="0" r="4.5" fill="' + c + '" stroke="#222" stroke-width="1.5"/>',
+    (c) => // 3 curved scimitar
+      '<path d="M 0,-4 C 20,-14 40,-10 44,2 C 38,-1 22,-1 4,4 Z" fill="' + c + '" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/>' +
+      '<rect x="-16" y="-3" width="16" height="6" rx="2" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>',
+    (c) => // 4 axe
+      '<rect x="-18" y="-3" width="50" height="6" rx="3" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>' +
+      '<path d="M 20,-4 C 34,-22 50,-14 44,-2 C 50,10 34,20 20,4 Z" fill="' + c + '" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/>',
+    (c) => // 5 hammer
+      '<rect x="-18" y="-3" width="44" height="6" rx="3" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>' +
+      '<rect x="22" y="-14" width="20" height="28" rx="4" fill="' + c + '" stroke="#222" stroke-width="1.5"/>',
+    (c) => // 6 spear
+      '<rect x="-18" y="-2.5" width="56" height="5" rx="2.5" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>' +
+      '<polygon points="38,-6 54,0 38,6" fill="' + c + '" stroke="#222" stroke-width="1.5" stroke-linejoin="round"/>',
+    (c) => // 7 trident
+      '<rect x="-18" y="-2.5" width="48" height="5" rx="2.5" fill="#6b3f18" stroke="#222" stroke-width="1.5"/>' +
+      '<line x1="30" y1="0" x2="22" y2="-18" stroke="' + c + '" stroke-width="4" stroke-linecap="round"/>' +
+      '<line x1="30" y1="0" x2="30" y2="-20" stroke="' + c + '" stroke-width="4" stroke-linecap="round"/>' +
+      '<line x1="30" y1="0" x2="38" y2="-18" stroke="' + c + '" stroke-width="4" stroke-linecap="round"/>',
+  ];
+
+  function renderWeapon(lv) {
+    const tier = tierAt(lv);
+    const tierIndex = TIERS.indexOf(tier);
+    const glow = tierIndex === 0 ? 'none' : ('drop-shadow(0 0 ' + (2 + tierIndex * 3) + 'px ' + tier.color + ')');
+    weaponGroup.setAttribute('style', 'filter:' + glow + ';');
+
+    const shapeIndex = lv % SHAPES.length;
+    const decorated = lv >= SHAPES.length;
+    const scale = (1.2 + lv * 0.08).toFixed(2);
+
+    let inner = SHAPES[shapeIndex](tier.color);
+    if (decorated) {
+      inner += '<polygon points="34,-18 36,-14 40,-12 36,-10 34,-6 32,-10 28,-12 32,-14" fill="#fff" stroke="' + tier.color + '" stroke-width="1"/>';
+    }
+
+    weaponGroup.innerHTML = '<g transform="translate(100,75) rotate(-42) scale(' + scale + ')">' + inner + '</g>';
+  }
+
+  function renderDexIconSVG(lv) {
+    const tier = tierAt(lv);
+    const shapeIndex = lv % SHAPES.length;
+    let inner = SHAPES[shapeIndex](tier.color);
+    if (lv >= SHAPES.length) {
+      inner += '<polygon points="34,-18 36,-14 40,-12 36,-10 34,-6 32,-10 28,-12 32,-14" fill="#fff" stroke="' + tier.color + '" stroke-width="1"/>';
+    }
+    return '<svg viewBox="0 0 60 60" width="40" height="40">' +
+      '<g transform="translate(24,30) scale(0.8)">' + inner + '</g></svg>';
+  }
+
+  function openDex() {
+    let html = '';
+    for (let lv = 0; lv <= MAX_LEVEL; lv++) {
+      if (unlocked[lv]) {
+        html += '<div class="dexCell">' + renderDexIconSVG(lv) + '<div>+' + lv + '</div></div>';
+      } else {
+        html += '<div class="dexCell locked"><div style="font-size:22px;">❓</div><div>+' + lv + '</div></div>';
+      }
+    }
+    dexGrid.innerHTML = html;
+    dexOverlay.style.display = 'flex';
+  }
+
+  function applyFigureSkin(id) {
+    const skin = SKINS.find(s => s.id === id) || SKINS[0];
+    if (id === 'rainbow') {
+      figureBody.classList.add('rainbow-skin');
+      Array.from(figureBody.children).forEach(el => el.setAttribute('stroke', '#ff0000'));
+    } else {
+      figureBody.classList.remove('rainbow-skin');
+      Array.from(figureBody.children).forEach(el => el.setAttribute('stroke', skin.color));
+    }
+  }
+
+  function renderShop() {
+    let html = '';
+    SKINS.forEach(skin => {
+      const owned = ownedSkins.includes(skin.id);
+      const equipped = currentSkin === skin.id;
+      let swatchStyle = 'background:' + skin.color + ';';
+      if (skin.id === 'rainbow') swatchStyle = 'background: conic-gradient(red, orange, yellow, green, blue, violet, red);';
+      let btnHtml;
+      if (equipped) btnHtml = '<button class="shopBtn" disabled>장착됨</button>';
+      else if (owned) btnHtml = '<button class="shopBtn" data-equip="' + skin.id + '">장착하기</button>';
+      else btnHtml = '<button class="shopBtn" data-buy="' + skin.id + '" ' + (coins < skin.cost ? 'disabled' : '') + '>구매 (🪙' + skin.cost + ')</button>';
+      html += '<div class="shopRow"><div class="shopSwatch" style="' + swatchStyle + '"></div>' +
+        '<div class="shopInfo">' + skin.name + (skin.cost === 0 ? ' (기본)' : '') +
+        (skin.bonus > 0 ? '<br><span style="color:#2E7D32;">확률 +' + skin.bonus + '%</span>' : '') +
+        '</div>' + btnHtml + '</div>';
+    });
+    shopList.innerHTML = html;
+
+    shopList.querySelectorAll('[data-buy]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-buy');
+        const skin = SKINS.find(s => s.id === id);
+        if (coins >= skin.cost) {
+          coins -= skin.cost;
+          ownedSkins.push(id);
+          currentSkin = id;
+          applyFigureSkin(id);
+          updateUI();
+          renderShop();
+        }
+      });
+    });
+    shopList.querySelectorAll('[data-equip]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-equip');
+        currentSkin = id;
+        applyFigureSkin(id);
+        updateUI();
+        renderShop();
+      });
+    });
+  }
+
+  document.getElementById('dexBtn').addEventListener('click', openDex);
+  document.getElementById('shopBtn').addEventListener('click', () => { renderShop(); shopOverlay.style.display = 'flex'; });
+  document.getElementById('closeDexBtn').addEventListener('click', () => { dexOverlay.style.display = 'none'; });
+  document.getElementById('closeShopBtn').addEventListener('click', () => { shopOverlay.style.display = 'none'; });
+  document.getElementById('closeShopBtnTop').addEventListener('click', () => { shopOverlay.style.display = 'none'; });
+
+  function updateUI() {
+    levelEl.textContent = level;
+    levelBigEl.textContent = level;
+    bestEl.textContent = best;
+    triesEl.textContent = tries;
+    coinsEl.textContent = coins;
+    worldNumEl.textContent = world;
+    applyWorldTheme(world);
+    probText.textContent = level >= MAX_LEVEL ? 0 : probAt(level);
+    bonusText.textContent = currentSkinBonus() > 0 ? ('(스킨 보너스 +' + currentSkinBonus() + '%)') : '';
+
+    const tier = tierAt(level);
+    tierLabel.textContent = tier.name;
+    tierLabel.style.background = tier.color;
+    stage.style.borderColor = tier.color;
+    crownText.style.display = level >= MAX_LEVEL ? 'block' : 'none';
+
+    renderWeapon(level);
+
+    if (level >= MAX_LEVEL) {
+      enhanceBtn.disabled = true;
+      enhanceBtn.textContent = '🌍 다음 세계로 이동 중...';
+    } else {
+      enhanceBtn.disabled = false;
+      enhanceBtn.textContent = '⚒️ 강화하기';
+    }
+  }
+
+  function spawnSparks(count) {
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement('div');
+      s.className = 'spark';
+      s.textContent = '✨';
+      s.style.left = '50%';
+      s.style.top = '45%';
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 60 + Math.random() * 60;
+      s.style.setProperty('--dx', Math.cos(angle) * dist + 'px');
+      s.style.setProperty('--dy', Math.sin(angle) * dist + 'px');
+      stage.appendChild(s);
+      setTimeout(() => s.remove(), 800);
+    }
+  }
+
+  function enhance() {
+    if (busy || level >= MAX_LEVEL) return;
+    busy = true;
+    enhanceBtn.disabled = true;
+    tries++;
+
+    const chance = probAt(level);
+    const roll = Math.random() * 100;
+    const success = roll < chance;
+
+    resultMsg.textContent = '두구두구두구...';
+
+    setTimeout(() => {
+      if (success) {
+        level++;
+        if (level > best) best = level;
+        unlocked[level] = true;
+        coins += (TIERS.indexOf(tierAt(level)) + 1) * 6;
+        figureSvg.classList.remove('shake');
+        figureSvg.classList.add('pop');
+        setTimeout(() => figureSvg.classList.remove('pop'), 350);
+        spawnSparks(10);
+        resultMsg.textContent = '🎉 강화 성공! +' + level + ' 달성!';
+        resultMsg.style.color = '#2E7D32';
+
+        if (level === MAX_LEVEL) {
+          const worldBonus = 50 * world;
+          coins += worldBonus;
+          resultMsg.textContent = '🌟 ' + world + '세계 클리어! +15 달성! (보너스 🪙' + worldBonus + ')';
+          resultMsg.style.color = '#7c3aed';
+          setTimeout(() => {
+            world++;
+            level = 0;
+            updateUI();
+            resultMsg.textContent = '🌍 ' + world + '세계에 도착했어요! 다시 강화를 시작해보세요.';
+            resultMsg.style.color = '#2E7D32';
+          }, 1600);
+        }
+      } else {
+        level = 0;
+        figureSvg.classList.remove('pop');
+        figureSvg.classList.add('shake');
+        setTimeout(() => figureSvg.classList.remove('shake'), 400);
+        resultMsg.textContent = '💥 강화 실패! 처음(+0)으로 되돌아갔어요.';
+        resultMsg.style.color = '#C62828';
+      }
+      updateUI();
+      busy = false;
+      if (level < MAX_LEVEL) enhanceBtn.disabled = false;
+    }, 500);
+  }
+
+  function resetAll() {
+    level = 0; best = 0; tries = 0;
+    resultMsg.textContent = '';
+    updateUI();
+  }
+
+  enhanceBtn.addEventListener('click', enhance);
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+  applyFigureSkin(currentSkin);
+  updateUI();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>신나는 카트 대배틀 레이싱!</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Jua', 'Comic Sans MS', cursive, sans-serif;
+      background: #38ada9;
+    }
+
+    #gameCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* UI Overlay */
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 15px;
+    }
+
+    .hud-box {
+      background: rgba(255, 255, 255, 0.95);
+      border: 3px solid #eb4d4b;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #222;
+      box-shadow: 0 4px 0 #b71540;
+      display: inline-block;
+    }
+
+    #top-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #rank-display { color: #e1b12c; font-size: 20px; }
+    #dist-display { color: #0984e3; font-size: 20px; }
+
+    #item-box {
+      width: 65px;
+      height: 65px;
+      background: #fbc531;
+      border: 4px solid #e1b12c;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 34px;
+      box-shadow: 0 5px 0 #44bd32;
+    }
+
+    /* 조작 컨트롤러 */
+    #controls-layer {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      height: 130px;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+    }
+
+    #joystick-zone {
+      width: 110px;
+      height: 110px;
+      background: rgba(255, 255, 255, 0.4);
+      border: 4px solid #FFF;
+      border-radius: 50%;
+      position: relative;
+      pointer-events: auto;
+      touch-action: none;
+    }
+
+    #joystick-knob {
+      width: 44px;
+      height: 44px;
+      background: #eb4d4b;
+      border: 3px solid #FFF;
+      border-radius: 50%;
+      position: absolute;
+      top: 30px;
+      left: 30px;
+      box-shadow: 0 4px 0 #b71540;
+    }
+
+    #btn-item {
+      width: 85px;
+      height: 85px;
+      background: #00a8ff;
+      border: 4px solid #FFF;
+      border-radius: 50%;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 6px 0 #0097e6;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+
+    #btn-item:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 #0097e6;
+    }
+
+    /* 결과 스크린 */
+    #result-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .result-card {
+      background: #FFF;
+      border: 8px solid #9c88ff;
+      border-radius: 30px;
+      padding: 30px;
+      text-align: center;
+      max-width: 360px;
+      width: 85%;
+      box-shadow: 0 10px 0 #8c7ae6;
+    }
+
+    .result-card h1 { font-size: 32px; color: #eb4d4b; margin-bottom: 10px; }
+    .result-card p { font-size: 20px; color: #2f3640; margin-bottom: 20px; }
+
+    .btn-restart {
+      background: #44bd32;
+      border: none;
+      border-radius: 15px;
+      padding: 12px 28px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      box-shadow: 0 6px 0 #4cd137;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="ui-layer">
+    <div id="top-hud">
+      <div class="hud-box">순위: <span id="rank-display">1등 / 8명</span></div>
+      <div class="hud-box">진행률: <span id="dist-display">0%</span></div>
+      <div id="item-box">❓</div>
+    </div>
+
+    <div id="controls-layer">
+      <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+      </div>
+      <div id="btn-item">아이템 사용</div>
+    </div>
+  </div>
+
+  <div id="result-screen">
+    <div class="result-card">
+      <h1 id="result-title">골인! 성공!</h1>
+      <p id="result-rank">당신은 1등입니다!</p>
+      <button class="btn-restart" onclick="location.reload()">다시 하기 🚀</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- 트랙 및 환경 데이터 ---
+    const ROAD_WIDTH = 130;
+    const TOTAL_DIST = 4000;
+    
+    function getRoadCurve(y) {
+      return Math.sin(y * 0.0025) * 190 + Math.cos(y * 0.001) * 110;
+    }
+
+    // 트랙 주변 장식물 미리 생성 (나무, 바위, 안내판, 펜스)
+    const sceneryObjects = [];
+    for (let y = -200; y <= TOTAL_DIST + 300; y += 45) {
+      const side = Math.random() > 0.5 ? 1 : -1;
+      const distOffset = ROAD_WIDTH + 35 + Math.random() * 60;
+      const typeChoice = Math.random();
+
+      let type = 'TREE_GREEN';
+      if (typeChoice < 0.3) type = 'TREE_GREEN';
+      else if (typeChoice < 0.5) type = 'TREE_AUTUMN';
+      else if (typeChoice < 0.75) type = 'ROCK';
+      else if (typeChoice < 0.9) type = 'SIGN';
+      else type = 'FLOWER';
+
+      sceneryObjects.push({ y, sideOffset: side * distOffset, type });
+
+      // 도로 펜스 설치 (더 실사 느낌)
+      if (y % 90 === 0) {
+        sceneryObjects.push({ y, sideOffset: -(ROAD_WIDTH + 15), type: 'FENCE' });
+        sceneryObjects.push({ y, sideOffset: (ROAD_WIDTH + 15), type: 'FENCE' });
+      }
+    }
+
+    // --- 카트 오브젝트 ---
+    const colors = ['#eb4d4b', '#44bd32', '#00a8ff', '#fbc531', '#9c88ff', '#e1b12c', '#487eb0', '#10ac84'];
+    const TOTAL_CARS = 8;
+    const cars = [];
+
+    // 플레이어 카트
+    cars.push({
+      x: 0,
+      y: 0,
+      speed: 0,
+      color: colors[0],
+      isPlayer: true,
+      spinTimer: 0,
+      rank: 1,
+      finished: false
+    });
+
+    // AI 카트 7대
+    for (let i = 1; i < TOTAL_CARS; i++) {
+      cars.push({
+        x: (i % 2 === 0 ? 40 : -40),
+        y: -i * 45,
+        speed: 3.4 + Math.random() * 0.5,
+        color: colors[i],
+        isPlayer: false,
+        spinTimer: 0,
+        rank: i + 1,
+        finished: false
+      });
+    }
+
+    // --- 아이템 박스 배치 ---
+    const itemBoxes = [];
+    for (let y = 400; y < TOTAL_DIST - 300; y += 450) {
+      itemBoxes.push({ y: y, offset: -50, active: true });
+      itemBoxes.push({ y: y, offset: 0, active: true });
+      itemBoxes.push({ y: y, offset: 50, active: true });
+    }
+
+    const activeProjectiles = [];
+    let playerInventory = null;
+
+    // 아이템 발사 로직
+    function useItem() {
+      if (!playerInventory || cars[0].finished) return;
+
+      const player = cars[0];
+
+      if (playerInventory === 'WATER') {
+        // 전방으로 날아가는 물풍선
+        activeProjectiles.push({
+          x: player.x,
+          y: player.y + 40,
+          type: 'WATER',
+          life: 120
+        });
+      } else if (playerInventory === 'BOOSTER') {
+        // 속도 대폭 증가
+        player.speed += 5.5;
+      } else if (playerInventory === 'BANANA') {
+        // 플레이어 바로 뒤에 바나나 설치
+        activeProjectiles.push({
+          x: player.x,
+          y: player.y - 40,
+          type: 'BANANA',
+          life: 400
+        });
+      }
+
+      playerInventory = null;
+      document.getElementById('item-box').innerText = '❓';
+    }
+
+    // --- 조이스틱 컨트롤 ---
+    let inputVector = { x: 0, y: 0 };
+    const knob = document.getElementById('joystick-knob');
+    const zone = document.getElementById('joystick-zone');
+    let isDragging = false;
+
+    function handleMove(px, py) {
+      const rect = zone.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      let dx = px - centerX;
+      let dy = py - centerY;
+      const dist = Math.hypot(dx, dy);
+      const maxDist = 35;
+
+      if (dist > maxDist) {
+        dx = (dx / dist) * maxDist;
+        dy = (dy / dist) * maxDist;
+      }
+
+      knob.style.transform = `translate(${dx}px, ${dy}px)`;
+      inputVector.x = dx / maxDist;
+      inputVector.y = -dy / maxDist;
+    }
+
+    zone.addEventListener('pointerdown', (e) => { isDragging = true; handleMove(e.clientX, e.clientY); });
+    window.addEventListener('pointermove', (e) => { if (isDragging) handleMove(e.clientX, e.clientY); });
+    window.addEventListener('pointerup', () => {
+      isDragging = false;
+      knob.style.transform = `translate(0px, 0px)`;
+      inputVector = { x: 0, y: 0 };
+    });
+
+    const keys = {};
+    window.addEventListener('keydown', e => { 
+      keys[e.code] = true; 
+      if (e.code === 'Space') useItem(); 
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    document.getElementById('btn-item').addEventListener('click', useItem);
+
+    // --- 메인 애니메이션 루프 ---
+    let isGameOver = false;
+
+    function update() {
+      if (isGameOver) return;
+
+      if (keys['ArrowUp'] || keys['KeyW']) inputVector.y = 1;
+      if (keys['ArrowDown'] || keys['KeyS']) inputVector.y = -0.5;
+      if (keys['ArrowLeft'] || keys['KeyA']) inputVector.x = -1;
+      if (keys['ArrowRight'] || keys['KeyD']) inputVector.x = 1;
+
+      cars.forEach((car) => {
+        if (car.finished) return;
+
+        if (car.spinTimer > 0) {
+          car.spinTimer--;
+          return;
+        }
+
+        if (car.isPlayer) {
+          const accel = 0.15;
+          const maxSpeed = 4.5;
+
+          if (inputVector.y > 0) car.speed = Math.min(car.speed + accel, maxSpeed);
+          else if (inputVector.y < 0) car.speed = Math.max(car.speed - accel, -maxSpeed / 2);
+          else car.speed *= 0.96;
+
+          car.y += car.speed;
+          car.x += inputVector.x * 4.0;
+          car.x = Math.max(-ROAD_WIDTH + 18, Math.min(ROAD_WIDTH - 18, car.x));
+
+          const percent = Math.min(100, Math.floor((car.y / TOTAL_DIST) * 100));
+          document.getElementById('dist-display').innerText = `${percent}%`;
+
+        } else {
+          car.y += car.speed;
+        }
+
+        if (car.y >= TOTAL_DIST) {
+          car.finished = true;
+          if (car.isPlayer) endGame();
+        }
+      });
+
+      // 아이템 박스 먹기
+      const p = cars[0];
+      itemBoxes.forEach(box => {
+        if (!box.active) return;
+        if (Math.abs(p.y - box.y) < 30 && Math.abs(p.x - box.offset) < 30 && !playerInventory) {
+          box.active = false;
+          const items = ['WATER', 'BOOSTER', 'BANANA'];
+          const icons = { 'WATER': '💧', 'BOOSTER': '🚀', 'BANANA': '🍌' };
+          playerInventory = items[Math.floor(Math.random() * items.length)];
+          document.getElementById('item-box').innerText = icons[playerInventory];
+        }
+      });
+
+      // 발사 투사체 이동 및 충돌
+      activeProjectiles.forEach((proj, pIdx) => {
+        proj.life--;
+
+        if (proj.type === 'WATER') {
+          proj.y += 8; // 앞으로 날아감
+        }
+
+        cars.forEach(car => {
+          if (Math.abs(car.y - proj.y) < 25 && Math.abs(car.x - proj.x) < 25) {
+            car.spinTimer = 45; // 충돌 시 피격 스핀
+            proj.life = 0;
+          }
+        });
+
+        if (proj.life <= 0) activeProjectiles.splice(pIdx, 1);
+      });
+
+      // 순위 계산
+      const sortedCars = [...cars].sort((a, b) => b.y - a.y);
+      sortedCars.forEach((c, i) => c.rank = i + 1);
+
+      if (!cars[0].finished) {
+        document.getElementById('rank-display').innerText = `${cars[0].rank}등 / ${TOTAL_CARS}명`;
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const player = cars[0];
+      const cameraY = player.y;
+
+      // 1. 배경 잔디밭
+      ctx.fillStyle = '#2ed573';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. 도로 그리기 (아스팔트 & 정교한 2.5D 효과)
+      ctx.beginPath();
+      for (let screenY = canvas.height + 50; screenY >= -50; screenY -= 10) {
+        const worldY = cameraY + (canvas.height / 2 - screenY);
+        const curveX = canvas.width / 2 + getRoadCurve(worldY) - getRoadCurve(cameraY);
+
+        if (screenY === canvas.height + 50) ctx.moveTo(curveX - ROAD_WIDTH, screenY);
+        else ctx.lineTo(curveX - ROAD_WIDTH, screenY);
+      }
+      for (let screenY = -50; screenY <= canvas.height + 50; screenY += 10) {
+        const worldY = cameraY + (canvas.height / 2 - screenY);
+        const curveX = canvas.width / 2 + getRoadCurve(worldY) - getRoadCurve(cameraY);
+        ctx.lineTo(curveX + ROAD_WIDTH, screenY);
+      }
+      ctx.fillStyle = '#2f3542';
+      ctx.fill();
+
+      // 중앙 점선 차선
+      ctx.beginPath();
+      for (let worldY = cameraY - 300; worldY <= cameraY + 400; worldY += 40) {
+        if (Math.floor(worldY / 40) % 2 === 0) continue;
+        const screenY = canvas.height / 2 - (worldY - cameraY);
+        const curveX = canvas.width / 2 + getRoadCurve(worldY) - getRoadCurve(cameraY);
+        ctx.fillStyle = '#fbc531';
+        ctx.fillRect(curveX - 3, screenY, 6, 20);
+      }
+
+      // 3. 풍부해진 트랙 오브젝트 그리기
+      sceneryObjects.forEach(obj => {
+        const screenY = canvas.height / 2 - (obj.y - cameraY);
+        const curveX = canvas.width / 2 + obj.sideOffset + getRoadCurve(obj.y) - getRoadCurve(cameraY);
+
+        if (screenY > -50 && screenY < canvas.height + 50) {
+          ctx.save();
+          ctx.translate(curveX, screenY);
+
+          if (obj.type === 'TREE_GREEN') {
+            ctx.fillStyle = '#10ac84';
+            ctx.beginPath();
+            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (obj.type === 'TREE_AUTUMN') {
+            ctx.fillStyle = '#e1b12c';
+            ctx.beginPath();
+            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (obj.type === 'ROCK') {
+            ctx.fillStyle = '#a4b0be';
+            ctx.beginPath();
+            ctx.arc(0, 0, 12, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (obj.type === 'SIGN') {
+            ctx.fillStyle = '#eb4d4b';
+            ctx.fillRect(-10, -10, 20, 15);
+            ctx.fillStyle = '#718093';
+            ctx.fillRect(-2, 5, 4, 10);
+          } else if (obj.type === 'FENCE') {
+            ctx.fillStyle = '#dcdde1';
+            ctx.fillRect(-12, -4, 24, 8);
+          }
+
+          ctx.restore();
+        }
+      });
+
+      // 출발선 & 결승선 아치
+      const startScreenY = canvas.height / 2 - (0 - cameraY);
+      const startCurveX = canvas.width / 2 + getRoadCurve(0) - getRoadCurve(cameraY);
+      if (startScreenY > -50 && startScreenY < canvas.height + 50) {
+        ctx.fillStyle = '#FFF';
+        ctx.fillRect(startCurveX - ROAD_WIDTH, startScreenY, ROAD_WIDTH * 2, 10);
+      }
+
+      const endScreenY = canvas.height / 2 - (TOTAL_DIST - cameraY);
+      const endCurveX = canvas.width / 2 + getRoadCurve(TOTAL_DIST) - getRoadCurve(cameraY);
+      if (endScreenY > -50 && endScreenY < canvas.height + 50) {
+        ctx.fillStyle = '#fbc531';
+        ctx.fillRect(endCurveX - ROAD_WIDTH, endScreenY - 10, ROAD_WIDTH * 2, 20);
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillStyle = '#eb4d4b';
+        ctx.fillText('FINISH', endCurveX - 35, endScreenY + 6);
+      }
+
+      // 4. 아이템 박스
+      itemBoxes.forEach(box => {
+        if (!box.active) return;
+        const screenY = canvas.height / 2 - (box.y - cameraY);
+        const curveX = canvas.width / 2 + box.offset + getRoadCurve(box.y) - getRoadCurve(cameraY);
+
+        if (screenY > -30 && screenY < canvas.height + 30) {
+          ctx.fillStyle = '#fbc531';
+          ctx.fillRect(curveX - 14, screenY - 14, 28, 28);
+          ctx.fillStyle = '#FFF';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.fillText('?', curveX - 5, screenY + 6);
+        }
+      });
+
+      // 5. 발사된 아이템 (💧, 🍌)
+      activeProjectiles.forEach(proj => {
+        const screenY = canvas.height / 2 - (proj.y - cameraY);
+        const curveX = canvas.width / 2 + proj.x + getRoadCurve(proj.y) - getRoadCurve(cameraY);
+
+        ctx.font = '26px sans-serif';
+        ctx.fillText(proj.type === 'WATER' ? '💧' : '🍌', curveX - 12, screenY + 10);
+      });
+
+      // 6. 카트들 그리기
+      cars.forEach(car => {
+        const screenY = canvas.height / 2 - (car.y - cameraY);
+        const curveX = canvas.width / 2 + car.x + getRoadCurve(car.y) - getRoadCurve(cameraY);
+
+        if (screenY > -50 && screenY < canvas.height + 50) {
+          ctx.save();
+          ctx.translate(curveX, screenY);
+
+          if (car.spinTimer > 0) ctx.rotate(car.spinTimer * 0.4);
+
+          // 헤드라이트 빛 효과
+          ctx.fillStyle = 'rgba(255, 255, 200, 0.3)';
+          ctx.beginPath();
+          ctx.moveTo(-10, -20);
+          ctx.lineTo(-20, -50);
+          ctx.lineTo(20, -50);
+          ctx.lineTo(10, -20);
+          ctx.fill();
+
+          // 카트 차체
+          ctx.fillStyle = car.color;
+          ctx.fillRect(-14, -20, 28, 40);
+
+          // 카트 바퀴
+          ctx.fillStyle = '#1e272e';
+          ctx.fillRect(-18, -16, 5, 12);
+          ctx.fillRect(13, -16, 5, 12);
+          ctx.fillRect(-18, 6, 5, 12);
+          ctx.fillRect(13, 6, 5, 12);
+
+          // 플레이어 식별 마크
+          if (car.isPlayer) {
+            ctx.fillStyle = '#fbc531';
+            ctx.beginPath();
+            ctx.arc(0, -28, 7, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.restore();
+        }
+      });
+    }
+
+    function gameLoop() {
+      update();
+      render();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+      isGameOver = true;
+      const rank = cars[0].rank;
+      document.getElementById('result-title').innerText = rank === 1 ? "🏆 우승 성공! 🏆" : "🏁 레이스 완주! 🏁";
+      document.getElementById('result-rank').innerText = `${rank}등으로 결승선에 골인했습니다!`;
+      document.getElementById('result-screen').style.display = 'flex';
+    }
+
+    // 실행 시작
+    gameLoop();
+  </script>
+</body>
+</html>

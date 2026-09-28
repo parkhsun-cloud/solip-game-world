@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>이모지 러너 어드벤처 🌟</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+      font-family: 'MapleStory', 'Comic Sans MS', sans-serif, Arial;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 10px;
+    }
+    #game-container {
+      width: 100%; max-width: 500px; height: 650px; background: #fff;
+      border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column; overflow: hidden; position: relative;
+      border: 6px solid #ff9a9e;
+    }
+    header {
+      background: linear-gradient(90deg, #ff9a9e, #fecfef);
+      padding: 12px; text-align: center; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+      font-size: 20px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;
+    }
+    .btn-icon {
+      background: #fff; border: none; border-radius: 50%; width: 36px; height: 36px;
+      font-size: 18px; cursor: pointer; box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    #canvas-container { flex: 1; position: relative; background: #87CEEB; }
+    canvas { width: 100%; height: 100%; display: block; }
+    
+    /* UI Overlay Cards & Modals */
+    .overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255,255,255,0.92); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 20px; z-index: 10;
+    }
+    .modal-title { font-size: 24px; color: #ff6b6b; margin-bottom: 12px; font-weight: bold; }
+    
+    /* Scrollable Shop */
+    .shop-section { width: 100%; max-height: 220px; overflow-y: auto; margin: 10px 0; padding: 5px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .card {
+      background: #fff; border: 3px solid #fecfef; border-radius: 12px; padding: 8px;
+      text-align: center; cursor: pointer; transition: 0.2s; position: relative;
+    }
+    .card.active { border-color: #ff6b6b; background: #fff0f3; }
+    .card .emoji { font-size: 32px; }
+    .card .price { font-size: 12px; color: #f59e0b; font-weight: bold; margin-top: 4px; }
+    
+    .btn-main {
+      background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+      color: white; border: none; padding: 12px 30px; font-size: 18px; font-weight: bold;
+      border-radius: 50px; cursor: pointer; box-shadow: 0 5px 15px rgba(79,172,254,0.4);
+      margin-top: 10px; transition: transform 0.1s;
+    }
+    .btn-main:active { transform: scale(0.95); }
+    
+    /* Stats Bar */
+    .stats-bar {
+      display: flex; justify-content: space-around; background: #fff; padding: 10px;
+      border-top: 3px solid #fecfef; font-weight: bold; color: #444;
+    }
+    .stat-item { display: flex; align-items: center; gap: 4px; }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <header>
+    <span>🌈 이모지 러너 어드벤처</span>
+    <div>
+      <button class="btn-icon" onclick="toggleLeaderboard()">🏆</button>
+      <button class="btn-icon" onclick="openShop()">🛒</button>
+    </div>
+  </header>
+
+  <div id="canvas-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- SHOP MODAL -->
+    <div id="shopModal" class="overlay">
+      <div class="modal-title">🛍️ 이모지 상점 (50코인 지급!)</div>
+      <div style="font-weight:bold; color:#f59e0b; margin-bottom:5px;">보유 코인: <span id="shopCoins">50</span>🪙</div>
+      
+      <div style="width:100%; text-align:left; font-weight:bold; margin-top:5px;">😀 캐릭터 선택</div>
+      <div class="shop-section">
+        <div class="grid" id="charGrid"></div>
+      </div>
+
+      <div style="width:100%; text-align:left; font-weight:bold; margin-top:5px;">🧢 모자 선택</div>
+      <div class="shop-section">
+        <div class="grid" id="hatGrid"></div>
+      </div>
+
+      <button class="btn-main" onclick="startGame()">🎮 게임 시작!</button>
+    </div>
+
+    <!-- GAME OVER MODAL -->
+    <div id="gameOverModal" class="overlay" style="display:none;">
+      <div class="modal-title" style="color:#e11d48;">💥 운석에 부딪혔어요!</div>
+      <p style="font-size:18px; font-weight:bold; margin-bottom:15px;">획득 점수: <span id="finalScore">0</span>점</p>
+      <button class="btn-main" style="background: linear-gradient(180deg, #ff4b2b 0%, #ff416c 100%);" onclick="resetGame()">다시 시작!</button>
+    </div>
+
+    <!-- LEADERBOARD MODAL -->
+    <div id="leaderboardModal" class="overlay" style="display:none;">
+      <div class="modal-title">🏆 Top 15 랭킹</div>
+      <div class="shop-section" style="max-height:300px;">
+        <ol id="rankList" style="padding-left:20px; text-align:left; font-weight:bold; line-height:2.2;"></ol>
+      </div>
+      <button class="btn-main" onclick="closeLeaderboard()">닫기</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">🪙 코인: <span id="coinCount">50</span></div>
+    <div class="stat-item">⭐ 점수: <span id="scoreCount">0</span></div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Resize canvas dynamically
+  function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+  }
+  resizeCanvas();
+
+  // State & Data
+  let coins = 50;
+  let score = 0;
+  let isPlaying = false;
+  let isRocketActive = false;
+  let rocketTimer = 0;
+
+  let selectedChar = '😖';
+  let selectedHat = '❌';
+
+  const chars = [
+    { name: '😖', price: 0, unlocked: true },
+    { name: '☺️', price: 10, unlocked: false },
+    { name: '😋', price: 15, unlocked: false },
+    { name: '🥴', price: 20, unlocked: false },
+    { name: '😎', price: 25, unlocked: false },
+    { name: '🥳', price: 30, unlocked: false }
+  ];
+
+  const hats = [
+    { name: '❌', label:'없음', price: 0, unlocked: true },
+    { name: '🧢', label:'야구모자', price: 10, unlocked: false },
+    { name: '🎩', label:'신사모자', price: 15, unlocked: false },
+    { name: '👑', label:'왕관', price: 20, unlocked: false },
+    { name: '🎓', label:'학사모', price: 25, unlocked: false }
+  ];
+
+  let ranks = [
+    { name: '🥳 민준', score: 240 },
+    { name: '😎 서연', score: 195 },
+    { name: '😋 도윤', score: 150 }
+  ];
+
+  // Player Object
+  const player = {
+    x: 80, y: 300, size: 40, vy: 0, gravity: 0.4, isGrounded: true
+  };
+
+  // Game Objects
+  let items = [];
+  let obstacles = [];
+
+  // Drag Controls
+  let isDragging = false;
+  
+  function handlePointerDown(e) {
+    if (!isPlaying) return;
+    isDragging = true;
+    if (player.isGrounded && !isRocketActive) {
+      player.vy = -9;
+      player.isGrounded = false;
+    }
+  }
+
+  function handlePointerMove(e) {
+    if (!isPlaying || !isDragging) return;
+    const rect = canvas.getBoundingClientRect();
+    const touchY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+    if (isRocketActive) {
+      player.y = Math.max(50, Math.min(canvas.height - 100, touchY));
+    }
+  }
+
+  function handlePointerUp() { isDragging = false; }
+
+  canvas.addEventListener('mousedown', handlePointerDown);
+  canvas.addEventListener('mousemove', handlePointerMove);
+  canvas.addEventListener('mouseup', handlePointerUp);
+  canvas.addEventListener('touchstart', handlePointerDown);
+  canvas.addEventListener('touchmove', handlePointerMove);
+  canvas.addEventListener('touchend', handlePointerUp);
+
+  // Render Shop
+  function renderShop() {
+    document.getElementById('shopCoins').innerText = coins;
+    document.getElementById('coinCount').innerText = coins;
+
+    const charGrid = document.getElementById('charGrid');
+    charGrid.innerHTML = chars.map((c, i) => `
+      <div class="card ${selectedChar === c.name ? 'active' : ''}" onclick="buyChar(${i})">
+        <div class="emoji">${c.name}</div>
+        <div class="price">${c.unlocked ? (selectedChar === c.name ? '✨착용중' : '선택') : c.price + '🪙'}</div>
+      </div>
+    `).join('');
+
+    const hatGrid = document.getElementById('hatGrid');
+    hatGrid.innerHTML = hats.map((h, i) => `
+      <div class="card ${selectedHat === h.name ? 'active' : ''}" onclick="buyHat(${i})">
+        <div class="emoji">${h.name}</div>
+        <div class="price">${h.unlocked ? (selectedHat === h.name ? '✨착용중' : '선택') : h.price + '🪙'}</div>
+      </div>
+    `).join('');
+  }
+
+  function buyChar(idx) {
+    const item = chars[idx];
+    if (item.unlocked) { selectedChar = item.name; }
+    else if (coins >= item.price) {
+      coins -= item.price; item.unlocked = true; selectedChar = item.name;
+    }
+    renderShop();
+  }
+
+  function buyHat(idx) {
+    const item = hats[idx];
+    if (item.unlocked) { selectedHat = item.name; }
+    else if (coins >= item.price) {
+      coins -= item.price; item.unlocked = true; selectedHat = item.name;
+    }
+    renderShop();
+  }
+
+  function openShop() { isPlaying = false; document.getElementById('shopModal').style.display = 'flex'; }
+  function startGame() {
+    document.getElementById('shopModal').style.display = 'none';
+    isPlaying = true;
+    score = 0;
+    items = []; obstacles = [];
+  }
+
+  function resetGame() {
+    document.getElementById('gameOverModal').style.display = 'none';
+    openShop();
+  }
+
+  function toggleLeaderboard() {
+    const modal = document.getElementById('leaderboardModal');
+    if (modal.style.display === 'flex') modal.style.display = 'none';
+    else {
+      const list = document.getElementById('rankList');
+      list.innerHTML = ranks.sort((a,b)=>b.score-a.score).slice(0, 15)
+        .map(r => `<li>${r.name} - ${r.score}점</li>`).join('');
+      modal.style.display = 'flex';
+    }
+  }
+  function closeLeaderboard() { document.getElementById('leaderboardModal').style.display = 'none'; }
+
+  // Game Loop
+  function update() {
+    if (!isPlaying) return;
+
+    score++;
+    document.getElementById('scoreCount').innerText = score;
+
+    // Rocket Duration
+    if (isRocketActive) {
+      rocketTimer--;
+      if (rocketTimer <= 0) isRocketActive = false;
+    } else {
+      // Gravity Physics
+      player.vy += player.gravity;
+      player.y += player.vy;
+      const groundY = canvas.height - 80;
+      if (player.y >= groundY) {
+        player.y = groundY;
+        player.vy = 0;
+        player.isGrounded = true;
+      }
+    }
+
+    // Spawn Items
+    if (Math.random() < (isRocketActive ? 0.15 : 0.04)) {
+      items.push({
+        x: canvas.width,
+        y: isRocketActive ? 120 + Math.random() * 80 : canvas.height - 100 - Math.random() * 120,
+        type: isRocketActive ? '🪙' : (Math.random() < 0.8 ? '🪙' : (Math.random() < 0.5 ? '🍰' : '🚀'))
+      });
+    }
+
+    // Spawn Meteorites
+    if (!isRocketActive && Math.random() < 0.015) {
+      obstacles.push({
+        x: canvas.width,
+        y: canvas.height - 90,
+        type: '☄️'
+      });
+    }
+
+    // Move Items
+    items.forEach((item, index) => {
+      item.x -= 3;
+      // Collision
+      if (Math.hypot(player.x - item.x, player.y - item.y) < 35) {
+        if (item.type === '🪙') { coins++; document.getElementById('coinCount').innerText = coins; }
+        else if (item.type === '🚀') { isRocketActive = true; rocketTimer = 600; }
+        items.splice(index, 1);
+      }
+    });
+
+    // Move Obstacles
+    obstacles.forEach((obs, index) => {
+      obs.x -= 4;
+      if (Math.hypot(player.x - obs.x, player.y - obs.y) < 30) {
+        // Game Over
+        isPlaying = false;
+        ranks.push({ name: `${selectedChar} 플레이어`, score: score });
+        document.getElementById('finalScore').innerText = score;
+        document.getElementById('gameOverModal').style.display = 'flex';
+      }
+    });
+
+    // Clean up offscreen
+    items = items.filter(i => i.x > -30);
+    obstacles = obstacles.filter(o => o.x > -30);
+  }
+
+  function draw() {
+    // Sky Background
+    ctx.fillStyle = isRocketActive ? '#1e1b4b' : '#87CEEB';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Ground
+    ctx.fillStyle = '#4ade80';
+    ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+
+    if (isPlaying) {
+      // Draw Items
+      ctx.font = '24px serif';
+      items.forEach(i => ctx.fillText(i.type, i.x, i.y));
+
+      // Draw Obstacles
+      obstacles.forEach(o => ctx.fillText(o.type, o.x, o.y));
+
+      // Draw Rocket Vehicle
+      if (isRocketActive) {
+        ctx.font = '36px serif';
+        ctx.fillText('🚀', player.x - 10, player.y + 20);
+      }
+
+      // Draw Player Emoji
+      ctx.font = '36px serif';
+      ctx.fillText(selectedChar, player.x, player.y);
+
+      // Draw Hat
+      if (selectedHat !== '❌') {
+        ctx.font = '20px serif';
+        ctx.fillText(selectedHat, player.x + 8, player.y - 22);
+      }
+    }
+
+    requestAnimationFrame(() => { update(); draw(); });
+  }
+
+  renderShop();
+  draw();
+</script>
+</body>
+</html>

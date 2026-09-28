@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>운석 피하기</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#030513}
+body{display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;color:#fff}
+#game{position:relative;width:min(94vw,520px);height:min(94vh,760px);overflow:hidden;border:3px solid #6675ff;border-radius:22px;background:radial-gradient(circle at 50% 15%,#1b2874,#070a29 55%,#02030c)}
+canvas{width:100%;height:100%;display:block}
+#hud{position:absolute;top:12px;left:16px;right:16px;display:flex;justify-content:space-between;font-size:19px;font-weight:bold;text-shadow:0 2px 4px #000}
+#overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(2,3,15,.78);text-align:center}
+#count{font-size:82px;font-weight:900;text-shadow:0 0 25px #65d9ff}
+#message{font-size:26px;font-weight:bold;margin-bottom:20px}
+button{display:none;border:0;border-radius:14px;background:#6075ff;color:white;font-size:20px;font-weight:bold;padding:14px 32px;box-shadow:0 5px 0 #3444b2}
+button:active{transform:translateY(4px);box-shadow:0 1px 0 #3444b2}
+#hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#b9c1ed;font-size:13px}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="canvas"></canvas>
+<div id="hud"><span>⭐ <b id="score">0</b></span><span>🏆 <b id="best">0</b></span></div>
+<div id="overlay"><div id="count">5</div><div id="message">게임 시작까지...</div><button id="again">다시 하기</button></div>
+<div id="hint">우주선을 손가락으로 드래그해서 움직이세요</div>
+</div>
+
+<script>
+const canvas=document.getElementById("canvas"),ctx=canvas.getContext("2d");
+const box=document.getElementById("game"),overlay=document.getElementById("overlay");
+const countEl=document.getElementById("count"),msgEl=document.getElementById("message");
+const again=document.getElementById("again"),scoreEl=document.getElementById("score"),bestEl=document.getElementById("best");
+
+let W=0,H=0,dpr=1,ship={x:0,y:0},targetX=0,rocks=[],stars=[];
+let score=0,best=Number(localStorage.getItem("meteorBest")||0),running=false,last=0,spawn=0,counting=false;
+bestEl.textContent=best;
+
+function resize(){
+ dpr=Math.min(devicePixelRatio||1,2);
+ W=box.clientWidth; H=box.clientHeight;
+ canvas.width=W*dpr; canvas.height=H*dpr;
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ ship={x:W/2,y:H-82,w:42,h:50}; targetX=ship.x;
+ stars=[];
+ for(let i=0;i<90;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:.5+Math.random()*1.5,v:15+Math.random()*35});
+}
+function reset(){
+ score=0;scoreEl.textContent="0";rocks=[];spawn=.3;
+ ship.x=W/2;ship.y=H-82;targetX=ship.x;
+}
+function countdown(){
+ if(counting)return;
+ counting=true;running=false;again.style.display="none";
+ reset();overlay.style.display="flex";msgEl.textContent="게임 시작까지...";
+ let n=5;countEl.textContent=n;
+ const timer=setInterval(()=>{
+   n--;
+   if(n>0){countEl.textContent=n;}
+   else{
+     clearInterval(timer);counting=false;overlay.style.display="none";
+     running=true;last=performance.now();requestAnimationFrame(loop);
+   }
+ },1000);
+}
+function rock(){
+ const r=15+Math.random()*20;
+ rocks.push({x:r+Math.random()*(W-r*2),y:-r,r:r,v:160+Math.random()*100+score*.8,a:Math.random()*6});
+}
+function drawShip(){
+ ctx.save();ctx.translate(ship.x,ship.y);
+ ctx.shadowBlur=18;ctx.shadowColor="#55eaff";
+ ctx.fillStyle="#61eaff";ctx.beginPath();
+ ctx.moveTo(0,-27);ctx.lineTo(22,22);ctx.lineTo(0,14);ctx.lineTo(-22,22);ctx.closePath();ctx.fill();
+ ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(0,-7,7,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#ff9b35";ctx.beginPath();ctx.moveTo(-9,19);ctx.lineTo(0,37+Math.random()*6);ctx.lineTo(9,19);ctx.fill();
+ ctx.restore();
+}
+function drawRock(r){
+ ctx.save();ctx.translate(r.x,r.y);ctx.rotate(r.a);
+ ctx.fillStyle="#99513d";ctx.shadowBlur=8;ctx.shadowColor="#ff653c";
+ ctx.beginPath();
+ for(let i=0;i<9;i++){let a=i*Math.PI*2/9,rr=r.r*(.78+.2*Math.sin(i*7.3));ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr)}
+ ctx.closePath();ctx.fill();ctx.restore();
+}
+function loop(t){
+ if(!running)return;
+ const dt=Math.min((t-last)/1000,.04);last=t;
+ score+=dt*5;scoreEl.textContent=Math.floor(score);
+ spawn-=dt;if(spawn<=0){rock();spawn=Math.max(.2,.62-score/650)}
+ ship.x+=(targetX-ship.x)*Math.min(1,dt*11);
+ ctx.clearRect(0,0,W,H);
+ for(const s of stars){s.y+=s.v*dt;if(s.y>H)s.y=0;ctx.globalAlpha=.3+s.r/4;ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill()}
+ ctx.globalAlpha=1;
+ for(const r of rocks){r.y+=r.v*dt;r.a+=dt;drawRock(r)}
+ for(const r of rocks)if(Math.hypot(r.x-ship.x,r.y-ship.y)<r.r+20){gameOver();return}
+ rocks=rocks.filter(r=>r.y<H+60);drawShip();
+ requestAnimationFrame(loop);
+}
+function gameOver(){
+ running=false;
+ const n=Math.floor(score);
+ if(n>best){best=n;localStorage.setItem("meteorBest",best);bestEl.textContent=best}
+ countEl.textContent="💥";msgEl.textContent="게임 오버!  "+n+"점";
+ again.style.display="block";overlay.style.display="flex";
+}
+function move(e){
+ const rect=canvas.getBoundingClientRect();
+ const px=(e.clientX-rect.left)*(W/rect.width);
+ targetX=Math.max(25,Math.min(W-25,px));
+}
+let dragging=false;
+canvas.addEventListener("pointerdown",e=>{
+  dragging=true;
+  canvas.setPointerCapture?.(e.pointerId);
+  move(e);
+});
+canvas.addEventListener("pointermove",e=>{
+  if(dragging) move(e);
+});
+canvas.addEventListener("pointerup",e=>{
+  dragging=false;
+  canvas.releasePointerCapture?.(e.pointerId);
+});
+canvas.addEventListener("pointercancel",()=>dragging=false);
+again.addEventListener("click",countdown);
+window.addEventListener("resize",()=>{if(!running&&!counting)resize()});
+resize();
+countdown();
+</script>
+</body>
+</html>

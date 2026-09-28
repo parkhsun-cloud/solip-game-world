@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>솔이의 숲속 마리오 모험 - 랭킹전!</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Jua&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Jua', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: #1a1a2e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-wrap {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 6px solid #4a2e18;
+        }
+
+        canvas {
+            display: block;
+            background: linear-gradient(to bottom, #74b9ff 0%, #a29bfe 100%);
+        }
+
+        /* UI 오버레이 */
+        #ui {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 22px;
+            color: #ffffff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 20;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #countdown {
+            font-size: 75px;
+            color: #f1c40f;
+            text-shadow: 4px 4px 0px #e67e22;
+            animation: pulse 1s infinite;
+        }
+
+        #msg {
+            font-size: 24px;
+            margin-top: 10px;
+            line-height: 1.4;
+        }
+
+        .sub-info {
+            font-size: 18px;
+            color: #bdc3c7;
+            margin-top: 8px;
+        }
+
+        /* 랭킹 폼 스타일 */
+        #ranking-input-zone {
+            display: none;
+            margin-top: 15px;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #nickname-input {
+            font-size: 20px;
+            padding: 8px 15px;
+            border-radius: 10px;
+            border: 3px solid #f1c40f;
+            text-align: center;
+            outline: none;
+            width: 220px;
+        }
+
+        .btn {
+            font-size: 20px;
+            padding: 8px 20px;
+            background: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #27ae60;
+            transition: all 0.1s;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #27ae60;
+        }
+
+        /* TOP 10 리더보드 */
+        #leaderboard {
+            display: none;
+            width: 90%;
+            max-height: 220px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        #leaderboard h3 {
+            color: #f1c40f;
+            margin-bottom: 8px;
+            font-size: 22px;
+        }
+
+        .rank-list {
+            list-style: none;
+            text-align: left;
+            font-size: 18px;
+        }
+
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 10px;
+            border-bottom: 1px dashed rgba(255,255,255,0.2);
+        }
+
+        .rank-item:nth-child(1) { color: #ffd700; font-weight: bold; }
+        .rank-item:nth-child(2) { color: #c0c0c0; font-weight: bold; }
+        .rank-item:nth-child(3) { color: #cd7f32; font-weight: bold; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-wrap">
+        <div id="ui">
+            <div>점수: <span id="score">0</span></div>
+            <div>🍃 나뭇잎: <span id="leafCount">0</span></div>
+            <div>⚠️ 독버섯/구멍 조심!</div>
+        </div>
+
+        <div id="overlay">
+            <div id="countdown">5</div>
+            <div id="msg">솔이의 숲속 마리오 모험이 시작됩니다!</div>
+            <div class="sub-info" id="sub-msg">스페이스바 / 터치로 점프 (2단 점프 가능!)</div>
+
+            <!-- 점수 입력 폼 -->
+            <div id="ranking-input-zone">
+                <input type="text" id="nickname-input" placeholder="이름/별명 입력" maxlength="8">
+                <button class="btn" id="save-btn" onclick="saveScore()">랭킹 등록하기</button>
+            </div>
+
+            <!-- TOP 10 랭킹판 -->
+            <div id="leaderboard">
+                <h3>🏆 TOP 10 랭킹 🏆</h3>
+                <ol class="rank-list" id="rank-list-content"></ol>
+                <button class="btn" style="margin-top: 10px; background: #e74c3c; box-shadow: 0 4px 0 #c0392b;" onclick="restartGameImmediately()">다시 도전하기!</button>
+            </div>
+        </div>
+
+        <canvas id="canvas" width="800" height="400"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const leafEl = document.getElementById('leafCount');
+        const overlay = document.getElementById('overlay');
+        const countdownEl = document.getElementById('countdown');
+        const msgEl = document.getElementById('msg');
+        const subMsgEl = document.getElementById('sub-msg');
+        
+        const rankingInputZone = document.getElementById('ranking-input-zone');
+        const nicknameInput = document.getElementById('nickname-input');
+        const leaderboard = document.getElementById('leaderboard');
+        const rankListContent = document.getElementById('rank-list-content');
+
+        // 게임 변수
+        let isPlaying = false;
+        let score = 0;
+        let leaves = 0;
+        let gameSpeed = 5;
+        let frameCount = 0;
+        let restartTimer = null;
+
+        // 효과음 & 배경음악 (Web Audio API)
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let bgmInterval;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+        }
+
+        function playSound(freq, type, duration) {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e){}
+        }
+
+        // 신나는 레트로 BGM
+        const bgmNotes = [261, 329, 392, 523, 392, 329, 293, 349, 440, 587, 440, 349];
+        let noteIdx = 0;
+        function startBGM() {
+            if (bgmInterval) clearInterval(bgmInterval);
+            bgmInterval = setInterval(() => {
+                if (isPlaying) {
+                    playSound(bgmNotes[noteIdx], 'triangle', 0.15);
+                    noteIdx = (noteIdx + 1) % bgmNotes.length;
+                }
+            }, 200);
+        }
+
+        // 솔방울 '솔이' 캐릭터
+        const sol = {
+            x: 100,
+            y: 200,
+            w: 46,
+            h: 56,
+            vy: 0,
+            gravity: 0.75,
+            jumpPower: -13.5,
+            jumpCount: 0,
+            maxJumps: 2,
+            grounded: false
+        };
+
+        // 맵 요소 관리
+        let grounds = [];
+        let obstacles = [];
+        let items = [];
+
+        function initMap() {
+            grounds = [];
+            obstacles = [];
+            items = [];
+            grounds.push({ x: 0, y: 320, w: 1000, h: 80, isBlock: false });
+        }
+
+        function generateMap() {
+            const lastGround = grounds[grounds.length - 1];
+            if (lastGround.x + lastGround.w < canvas.width + 300) {
+                const gap = Math.random() < 0.4 ? Math.floor(Math.random() * 80 + 70) : 0;
+                const groundWidth = Math.floor(Math.random() * 200 + 150);
+                const newX = lastGround.x + lastGround.w + gap;
+
+                grounds.push({ x: newX, y: 320, w: groundWidth, h: 80, isBlock: false });
+
+                if (Math.random() < 0.6) {
+                    const blockW = Math.floor(Math.random() * 3 + 2) * 40;
+                    const blockY = Math.random() < 0.5 ? 200 : 240;
+                    grounds.push({ x: newX + 40, y: blockY, w: blockW, h: 30, isBlock: true });
+
+                    items.push({ x: newX + 40 + blockW/2 - 12, y: blockY - 35, w: 24, h: 24, collected: false });
+                }
+
+                if (Math.random() < 0.5) {
+                    obstacles.push({ x: newX + groundWidth/2, y: 286, w: 34, h: 34 });
+                }
+
+                if (Math.random() < 0.5) {
+                    items.push({ x: newX + Math.random() * (groundWidth - 40), y: 260, w: 24, h: 24, collected: false });
+                }
+            }
+        }
+
+        // 카운트다운 진행
+        let count = 5;
+        const countdownTimer = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countdownEl.innerText = count;
+            } else if (count === 0) {
+                countdownEl.innerText = "START!";
+            } else {
+                clearInterval(countdownTimer);
+                overlay.style.display = 'none';
+                initAudio();
+                startBGM();
+                startGame();
+            }
+        }, 1000);
+
+        function startGame() {
+            isPlaying = true;
+            score = 0;
+            leaves = 0;
+            gameSpeed = 5;
+            sol.y = 200;
+            sol.vy = 0;
+            sol.jumpCount = 0;
+            initMap();
+            requestAnimationFrame(update);
+        }
+
+        function triggerJump() {
+            if (!isPlaying) return;
+            initAudio();
+            if (sol.jumpCount < sol.maxJumps) {
+                sol.vy = sol.jumpPower;
+                sol.jumpCount++;
+                sol.grounded = false;
+                playSound(600 + sol.jumpCount * 150, 'square', 0.1);
+            }
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                if (isPlaying) triggerJump();
+            }
+        });
+        canvas.addEventListener('touchstart', (e) => {
+            if (isPlaying) {
+                e.preventDefault();
+                triggerJump();
+            }
+        });
+        canvas.addEventListener('mousedown', () => {
+            if (isPlaying) triggerJump();
+        });
+
+        // 메인 루프
+        function update() {
+            if (!isPlaying) return;
+
+            frameCount++;
+            score++;
+            if (frameCount % 600 === 0) gameSpeed += 0.5;
+
+            sol.vy += sol.gravity;
+            sol.y += sol.vy;
+
+            grounds.forEach(g => g.x -= gameSpeed);
+            obstacles.forEach(o => o.x -= gameSpeed);
+            items.forEach(i => i.x -= gameSpeed);
+
+            generateMap();
+            grounds = grounds.filter(g => g.x + g.w > -100);
+            obstacles = obstacles.filter(o => o.x + o.w > -100);
+            items = items.filter(i => i.x + i.w > -100);
+
+            sol.grounded = false;
+            grounds.forEach(g => {
+                if (
+                    sol.x + sol.w > g.x &&
+                    sol.x < g.x + g.w &&
+                    sol.y + sol.h >= g.y &&
+                    sol.y + sol.h <= g.y + g.h &&
+                    sol.vy >= 0
+                ) {
+                    sol.grounded = true;
+                    sol.vy = 0;
+                    sol.y = g.y - sol.h;
+                    sol.jumpCount = 0;
+                }
+            });
+
+            if (sol.y > canvas.height + 50) {
+                gameOver("구멍에 빠졌어요! 🕳️");
+                return;
+            }
+
+            obstacles.forEach(o => {
+                if (
+                    sol.x + 8 < o.x + o.w &&
+                    sol.x + sol.w - 8 > o.x &&
+                    sol.y + 8 < o.y + o.h &&
+                    sol.y + sol.h > o.y
+                ) {
+                    gameOver("독버섯을 먹었어요! 🍄💥");
+                    return;
+                }
+            });
+
+            items.forEach(i => {
+                if (!i.collected &&
+                    sol.x < i.x + i.w &&
+                    sol.x + sol.w > i.x &&
+                    sol.y < i.y + i.h &&
+                    sol.y + sol.h > i.y
+                ) {
+                    i.collected = true;
+                    leaves++;
+                    score += 150;
+                    playSound(900, 'sine', 0.15);
+                }
+            });
+
+            draw();
+
+            scoreEl.innerText = score;
+            leafEl.innerText = leaves;
+
+            requestAnimationFrame(update);
+        }
+
+        // 그리기 함수
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 구름
+            ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+            ctx.beginPath();
+            ctx.arc((frameCount * 0.5) % 900 - 50, 60, 25, 0, Math.PI * 2);
+            ctx.arc((frameCount * 0.5) % 900 - 30, 50, 30, 0, Math.PI * 2);
+            ctx.arc((frameCount * 0.5) % 900 - 10, 60, 25, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 2. 땅 & 블록
+            grounds.forEach(g => {
+                if (g.isBlock) {
+                    ctx.fillStyle = '#e67e22';
+                    ctx.fillRect(g.x, g.y, g.w, g.h);
+                    ctx.strokeStyle = '#d35400';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(g.x, g.y, g.w, g.h);
+                    ctx.fillStyle = '#b54402';
+                    for(let bx = g.x; bx < g.x + g.w; bx += 20) {
+                        ctx.fillRect(bx, g.y + 14, 18, 2);
+                    }
+                } else {
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.fillRect(g.x, g.y, g.w, 15);
+                    ctx.fillStyle = '#8e5b3c';
+                    ctx.fillRect(g.x, g.y + 15, g.w, g.h - 15);
+                }
+            });
+
+            // 3. 나뭇잎
+            items.forEach(i => {
+                if (!i.collected) {
+                    ctx.fillStyle = '#2ecc71';
+                    ctx.beginPath();
+                    ctx.ellipse(i.x + 12, i.y + 12, 10, 14, Math.PI / 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#27ae60';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+
+            // 4. 독버섯
+            obstacles.forEach(o => {
+                ctx.fillStyle = '#f5f5f5';
+                ctx.fillRect(o.x + 8, o.y + 16, 18, 18);
+                ctx.fillStyle = '#9b59b6';
+                ctx.beginPath();
+                ctx.arc(o.x + 17, o.y + 16, 17, Math.PI, 0);
+                ctx.fill();
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.arc(o.x + 11, o.y + 10, 3, 0, Math.PI*2);
+                ctx.arc(o.x + 23, o.y + 10, 3, 0, Math.PI*2);
+                ctx.arc(o.x + 17, o.y + 5, 3, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // 5. 솔이
+            drawSol(sol.x, sol.y);
+        }
+
+        function drawSol(x, y) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            ctx.fillStyle = "#8d5b4c";
+            ctx.strokeStyle = "#5a382c";
+            ctx.lineWidth = 2.5;
+
+            ctx.beginPath();
+            ctx.arc(23, 44, 18, 0, Math.PI);
+            ctx.fill(); ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(23, 32, 21, 0, Math.PI);
+            ctx.fill(); ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(23, 20, 20, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = "#5a382c";
+            ctx.fillRect(21, -2, 4, 6);
+
+            ctx.fillStyle = "#2c3e50";
+            ctx.beginPath();
+            ctx.arc(17, 18, 2, 0, Math.PI * 2);
+            ctx.arc(29, 18, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "rgba(231, 76, 60, 0.4)";
+            ctx.beginPath();
+            ctx.arc(14, 21, 3.5, 0, Math.PI * 2);
+            ctx.arc(32, 21, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#2ecc71";
+            ctx.beginPath();
+            ctx.ellipse(40, 34, 4, 7, Math.PI / 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // 게임 오버 처리
+        function gameOver(reason) {
+            isPlaying = false;
+            playSound(150, 'sawtooth', 0.5);
+
+            overlay.style.display = 'flex';
+            countdownEl.innerText = "GAME OVER";
+            msgEl.innerHTML = `${reason}<br>최종 점수: <b>${score}점</b> (나뭇잎 ${leaves}개)`;
+            subMsgEl.innerText = "이름을 등록해서 TOP 10에 도전하세요!";
+
+            rankingInputZone.style.display = 'flex';
+            leaderboard.style.display = 'none';
+            nicknameInput.value = '';
+            nicknameInput.focus();
+        }
+
+        // 랭킹 저장 및 표시 함수
+        function saveScore() {
+            const name = nicknameInput.value.trim() || '무명솔이';
+            
+            // 기존 랭킹 불러오기
+            let rankings = JSON.parse(localStorage.getItem('sol_rankings') || '[]');
+            
+            // 새로운 기록 추가
+            rankings.push({ name: name, score: score, leaves: leaves });
+            
+            // 점수 기준 내림차순 정렬
+            rankings.sort((a, b) => b.score - a.score);
+            
+            // TOP 10까지 자르기
+            rankings = rankings.slice(0, 10);
+            
+            // 저장
+            localStorage.setItem('sol_rankings', JSON.stringify(rankings));
+
+            // UI 화면 전환
+            rankingInputZone.style.display = 'none';
+            showLeaderboard();
+        }
+
+        // 랭킹 리더보드 표시
+        function showLeaderboard() {
+            leaderboard.style.display = 'block';
+            subMsgEl.innerText = "";
+            rankListContent.innerHTML = '';
+
+            const rankings = JSON.parse(localStorage.getItem('sol_rankings') || '[]');
+
+            if (rankings.length === 0) {
+                rankListContent.innerHTML = '<li class="rank-item" style="justify-content:center;">아직 등록된 기록이 없습니다.</li>';
+                return;
+            }
+
+            rankings.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'rank-item';
+                li.innerHTML = `
+                    <span><b>${index + 1}위</b> ${item.name}</span>
+                    <span>${item.score}점 (🍃${item.leaves})</span>
+                `;
+                rankListContent.appendChild(li);
+            });
+        }
+
+        // 즉시 재시작 버튼
+        function restartGameImmediately() {
+            leaderboard.style.display = 'none';
+            rankingInputZone.style.display = 'none';
+            countdownEl.innerText = "READY!";
+            
+            let count = 3;
+            countdownEl.innerText = count;
+            
+            const timer = setInterval(() => {
+                count--;
+                if(count > 0) {
+                    countdownEl.innerText = count;
+                } else {
+                    clearInterval(timer);
+                    overlay.style.display = 'none';
+                    startGame();
+                }
+            }, 800);
+        }
+    </script>
+</body>
+</html>

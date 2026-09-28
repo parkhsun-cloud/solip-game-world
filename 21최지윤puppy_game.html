@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>강아지 키우기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Galmuri9&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --shell: #8a8a8a;
+    --shell-dark: #5a5a5a;
+    --screen-bg: #9fae8c;
+    --screen-bg2: #93a281;
+    --fg: #2b3a2b;
+    --fg-light: #47563f;
+  }
+
+  * {
+    box-sizing: border-box;
+    font-family: 'Galmuri9', monospace;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: repeating-linear-gradient(45deg, #d4d4d4, #d4d4d4 10px, #c7c7c7 10px, #c7c7c7 20px);
+    padding: 20px 0;
+  }
+
+  .device {
+    width: 340px;
+    background: var(--shell);
+    border-radius: 20px;
+    padding: 18px;
+    border: 4px solid var(--shell-dark);
+    box-shadow: 6px 6px 0 #4a4a4a;
+    position: relative;
+  }
+
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .device h1 {
+    text-align: center;
+    color: var(--fg);
+    font-size: 15px;
+    margin: 0;
+    flex: 1;
+    letter-spacing: 1px;
+  }
+
+  .help-btn {
+    width: 30px;
+    height: 30px;
+    background: #cfcfcf;
+    border: 2px solid #000;
+    color: #000;
+    font-weight: bold;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #000;
+    flex-shrink: 0;
+    font-family: 'Galmuri9', monospace;
+  }
+  .help-btn:active { transform: translate(3px,3px); box-shadow: none; }
+
+  .screen {
+    background: var(--screen-bg);
+    border: 5px solid #000;
+    padding: 10px;
+    position: relative;
+    overflow: hidden;
+    image-rendering: pixelated;
+  }
+
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: var(--fg);
+  }
+
+  .growth-box {
+    background: var(--screen-bg2);
+    border: 2px solid var(--fg);
+    padding: 5px 8px;
+    margin-bottom: 8px;
+  }
+
+  .growth-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--fg);
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .growth-bar-bg {
+    height: 10px;
+    background: var(--screen-bg);
+    border: 2px solid var(--fg);
+  }
+
+  .growth-bar-fill {
+    height: 100%;
+    background: var(--fg);
+    width: 0%;
+  }
+
+  .pet-area {
+    height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background:
+      linear-gradient(var(--screen-bg2) 1px, transparent 1px) 0 0/10px 10px,
+      linear-gradient(90deg, var(--screen-bg2) 1px, transparent 1px) 0 0/10px 10px;
+  }
+
+  .pet-svg rect {
+    shape-rendering: crispEdges;
+  }
+  #pixelGroup rect {
+    fill: var(--fg);
+  }
+
+  .speech {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--screen-bg);
+    border: 2px solid var(--fg);
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--fg);
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+  .speech.show { opacity: 1; }
+
+  .bars { margin-top: 4px; }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--fg);
+    font-weight: bold;
+  }
+
+  .bar-label { width: 62px; }
+
+  .bar-bg {
+    flex: 1;
+    height: 12px;
+    background: var(--screen-bg);
+    border: 2px solid var(--fg);
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--fg);
+    width: 80%;
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  button.action {
+    border: 2px solid #000;
+    background: #cfcfcf;
+    padding: 10px 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #000;
+    font-family: 'Galmuri9', monospace;
+  }
+  button.action:active { transform: translate(3px,3px); box-shadow: none; }
+
+  .message-box {
+    margin-top: 8px;
+    background: #dcdcc8;
+    border: 2px solid #000;
+    padding: 6px 8px;
+    font-size: 11px;
+    color: #2b2b2b;
+    text-align: center;
+    min-height: 18px;
+    font-weight: bold;
+  }
+
+  .restart-btn {
+    display: none;
+    margin-top: 8px;
+    width: 100%;
+    background: #cfcfcf;
+    border: 2px solid #000;
+    padding: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #000;
+    font-family: 'Galmuri9', monospace;
+  }
+  .restart-btn:active { transform: translate(3px,3px); box-shadow: none; }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .overlay.show { display: flex; }
+
+  .help-card {
+    background: #dcdcc8;
+    border: 4px solid #000;
+    width: 290px;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 16px;
+    box-shadow: 6px 6px 0 #000;
+  }
+  .help-card h2 {
+    margin-top: 0;
+    font-size: 15px;
+    color: #2b2b2b;
+    text-align: center;
+  }
+  .help-card h3 {
+    font-size: 12px;
+    color: #2b2b2b;
+    margin: 10px 0 4px;
+  }
+  .help-card p, .help-card li {
+    font-size: 11px;
+    color: #2b2b2b;
+    line-height: 1.6;
+    margin: 2px 0;
+  }
+  .help-card ul { padding-left: 16px; margin: 4px 0; }
+  .close-help {
+    display: block;
+    margin: 12px auto 0;
+    background: #cfcfcf;
+    color: #000;
+    border: 2px solid #000;
+    padding: 8px 20px;
+    font-weight: bold;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #000;
+    font-family: 'Galmuri9', monospace;
+  }
+  .close-help:active { transform: translate(3px,3px); box-shadow: none; }
+
+  .intro-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--screen-bg);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 14px;
+  }
+  .intro-overlay.hidden { display: none; }
+
+  .intro-title {
+    text-align: center;
+    font-size: 15px;
+    color: var(--fg);
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+
+  .intro-box {
+    background: var(--screen-bg2);
+    border: 2px solid var(--fg);
+    padding: 8px 10px;
+    margin-bottom: 12px;
+  }
+
+  .intro-box h3 {
+    font-size: 11px;
+    color: var(--fg);
+    margin: 6px 0 3px;
+  }
+  .intro-box h3:first-child { margin-top: 0; }
+
+  .intro-box ul {
+    margin: 2px 0;
+    padding-left: 14px;
+  }
+  .intro-box li, .intro-box p {
+    font-size: 10.5px;
+    color: var(--fg);
+    line-height: 1.5;
+    margin: 1px 0;
+  }
+
+  .start-btn {
+    display: block;
+    width: 100%;
+    background: #cfcfcf;
+    border: 2px solid #000;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #000;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #000;
+    font-family: 'Galmuri9', monospace;
+  }
+  .start-btn:active { transform: translate(3px,3px); box-shadow: none; }
+</style>
+</head>
+<body>
+
+<div class="device">
+  <div class="top-row">
+    <button class="help-btn" onclick="toggleHelp(true)">?</button>
+    <h1>[ 강아지 키우기 ]</h1>
+    <button class="help-btn" style="visibility:hidden">?</button>
+  </div>
+
+  <div class="screen">
+    <div class="intro-overlay" id="introOverlay">
+      <div class="intro-title">[ 강아지 키우기 ]</div>
+      <div class="intro-box">
+        <h3>■ 버튼 사용법</h3>
+        <ul>
+          <li>A 밥주기 → 배고픔 UP</li>
+          <li>B 공놀이 → 행복 UP (에너지 DOWN)</li>
+          <li>C 재우기 → 에너지 UP</li>
+          <li>D 목욕 → 청결 UP</li>
+        </ul>
+        <h3>■ 성장 & 종료</h3>
+        <p>시간이 지나면 아기→어린→어른으로 자라요.</p>
+        <p>상태 중 하나라도 0이 되면 게임 종료!</p>
+      </div>
+      <button class="start-btn" onclick="startGame()">▶ 시작하기</button>
+    </div>
+
+    <div class="status-bar">
+      <span>이름:멍멍이</span>
+      <span id="ageText">나이:0일</span>
+    </div>
+
+    <div class="growth-box">
+      <div class="growth-title">
+        <span id="stageName">아기 강아지</span>
+        <span id="growthSub2"></span>
+      </div>
+      <div class="growth-bar-bg">
+        <div class="growth-bar-fill" id="growthBar"></div>
+      </div>
+    </div>
+
+    <div class="pet-area">
+      <div class="speech" id="speech"></div>
+      <svg id="petSvg" class="pet-svg" viewBox="0 0 200 220" width="150" height="165" shape-rendering="crispEdges">
+        <g id="dogScale">
+          <g id="pixelGroup"></g>
+        </g>
+      </svg>
+    </div>
+
+    <div class="bars">
+      <div class="bar-row">
+        <span class="bar-label">배고픔</span>
+        <div class="bar-bg"><div class="bar-fill" id="hungerBar"></div></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">행복</span>
+        <div class="bar-bg"><div class="bar-fill" id="happyBar"></div></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">에너지</span>
+        <div class="bar-bg"><div class="bar-fill" id="energyBar"></div></div>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">청결</span>
+        <div class="bar-bg"><div class="bar-fill" id="cleanBar"></div></div>
+      </div>
+    </div>
+
+    <div class="message-box" id="messageBox">[?] 버튼을 눌러 게임 방법을 확인하세요</div>
+  </div>
+
+  <div class="buttons">
+    <button class="action" onclick="feed()">A 밥주기</button>
+    <button class="action" onclick="play()">B 공놀이</button>
+    <button class="action" onclick="sleep()">C 재우기</button>
+    <button class="action" onclick="cleanPet()">D 목욕</button>
+  </div>
+
+  <button class="restart-btn" id="restartBtn" onclick="restartGame()">RESET - 다시시작</button>
+</div>
+
+<div class="overlay" id="helpOverlay">
+  <div class="help-card">
+    <h2>[ 게임 방법 ]</h2>
+    <h3>■ 버튼 사용법</h3>
+    <ul>
+      <li>A 밥주기 → 배고픔 UP</li>
+      <li>B 공놀이 → 행복 UP (에너지 DOWN)</li>
+      <li>C 재우기 → 에너지 UP (다시 누르면 깸)</li>
+      <li>D 목욕 → 청결 UP</li>
+    </ul>
+    <h3>■ 성장하기</h3>
+    <p>시간이 지나면 <b>아기 강아지 → 어린 강아지 → 어른 개</b> 순서로 자라나요. 화면 위쪽 막대로 성장 상태를 확인하세요.</p>
+    <h3>■ 게임 종료 조건</h3>
+    <p>배고픔, 행복, 청결 중 <b>하나라도 0</b>이 되면 게임이 끝나요. 상태바를 꽉 채워서 잘 돌봐주세요!</p>
+    <p>게임이 끝나면 RESET 버튼으로 새로 시작할 수 있어요.</p>
+    <button class="close-help" onclick="toggleHelp(false)">OK</button>
+  </div>
+</div>
+
+<script>
+  // ===== 상태 변수 =====
+  let hunger = 80, happy = 80, energy = 80, clean = 80;
+  let age = 0;
+  let isSleeping = false;
+  let isGameOver = false;
+  let tickCount = 0;
+  let tailFrame = false;
+
+  const dogScale = document.getElementById('dogScale');
+  const pixelGroup = document.getElementById('pixelGroup');
+  const speechEl = document.getElementById('speech');
+  const messageBox = document.getElementById('messageBox');
+  const ageText = document.getElementById('ageText');
+  const restartBtn = document.getElementById('restartBtn');
+  const stageNameEl = document.getElementById('stageName');
+  const growthBar = document.getElementById('growthBar');
+  const growthSub2 = document.getElementById('growthSub2');
+  const helpOverlay = document.getElementById('helpOverlay');
+
+  const stages = [
+    { key: 'baby',  name: '아기 강아지', min: 0, max: 1 },
+    { key: 'young', name: '어린 강아지', min: 1, max: 2 },
+    { key: 'adult', name: '어른 개',     min: 2, max: Infinity }
+  ];
+  const stageScale = { baby: 0.68, young: 0.86, adult: 1.05 };
+
+  function toggleHelp(show) { helpOverlay.classList.toggle('show', show); }
+
+  function getCurrentStage() {
+    for (const s of stages) { if (age >= s.min && age < s.max) return s; }
+    return stages[stages.length - 1];
+  }
+
+  function updateGrowthUI() {
+    const stage = getCurrentStage();
+    stageNameEl.textContent = stage.name;
+    if (stage.key === 'adult') {
+      growthBar.style.width = '100%';
+      growthSub2.textContent = 'MAX';
+    } else {
+      const pct = Math.min(100, Math.round(((age - stage.min) / (stage.max - stage.min)) * 100));
+      growthBar.style.width = pct + '%';
+      growthSub2.textContent = '다음까지 ' + (stage.max - age) + '일';
+    }
+  }
+
+  function updateBars() {
+    document.getElementById('hungerBar').style.width = hunger + "%";
+    document.getElementById('happyBar').style.width = happy + "%";
+    document.getElementById('energyBar').style.width = energy + "%";
+    document.getElementById('cleanBar').style.width = clean + "%";
+    ageText.textContent = "나이:" + age + "일";
+    updateGrowthUI();
+  }
+
+  function showMessage(text) { messageBox.textContent = text; }
+
+  function showSpeech(text) {
+    speechEl.textContent = text;
+    speechEl.classList.add('show');
+    setTimeout(() => speechEl.classList.remove('show'), 900);
+  }
+
+  // ===== 픽셀 스프라이트 렌더링 =====
+  const GRID = 20, CELL = 10;
+
+  function dist(x1,y1,x2,y2){ return Math.hypot(x1-x2,y1-y2); }
+
+  function sign(p1x,p1y,p2x,p2y,p3x,p3y){
+    return (p1x-p3x)*(p2y-p3y)-(p2x-p3x)*(p1y-p3y);
+  }
+  function inTriangle(px,py,x1,y1,x2,y2,x3,y3){
+    const d1 = sign(px,py,x1,y1,x2,y2);
+    const d2 = sign(px,py,x2,y2,x3,y3);
+    const d3 = sign(px,py,x3,y3,x1,y1);
+    const hasNeg = (d1<0)||(d2<0)||(d3<0);
+    const hasPos = (d1>0)||(d2>0)||(d3>0);
+    return !(hasNeg && hasPos);
+  }
+  function inXShape(cx,cy,ex,ey,r){
+    const dx = cx-ex, dy = cy-ey;
+    if (Math.abs(dx) > r || Math.abs(dy) > r) return false;
+    return Math.abs(Math.abs(dx)-Math.abs(dy)) < 4;
+  }
+
+  function buildSprite(state) {
+    const cells = new Array(GRID*GRID).fill(false);
+
+    for (let row=0; row<GRID; row++){
+      for (let col=0; col<GRID; col++){
+        const cx = col*CELL+CELL/2;
+        const cy = row*CELL+CELL/2;
+        let on = false;
+
+        // 몸통 (타원)
+        const bx=(cx-100)/68, by=(cy-165)/45;
+        if (bx*bx+by*by<=1) on=true;
+
+        // 머리 (원)
+        if (dist(cx,cy,100,90)<=60) on=true;
+
+        // 귀
+        if (inTriangle(cx,cy, 48,20, 26,68, 68,62)) on=true;
+        if (inTriangle(cx,cy, 152,20, 174,68, 132,62)) on=true;
+
+        // 다리
+        if (cy>=200 && cy<=215 && ((cx>=55&&cx<=80)||(cx>=120&&cx<=145))) on=true;
+
+        // 꼬리 (프레임에 따라 위치 변경 - 흔들기 효과)
+        if (state.tailUp) {
+          if (inTriangle(cx,cy, 168,140, 195,95, 180,152)) on=true;
+        } else {
+          if (inTriangle(cx,cy, 168,158, 198,178, 172,180)) on=true;
+        }
+
+        cells[row*GRID+col] = on;
+      }
+    }
+
+    // 눈/입 (음각 처리)
+    for (let row=0; row<GRID; row++){
+      for (let col=0; col<GRID; col++){
+        const idx = row*GRID+col;
+        if (!cells[idx]) continue;
+        const cx = col*CELL+CELL/2;
+        const cy = row*CELL+CELL/2;
+
+        if (state.eyes==='open') {
+          if (dist(cx,cy,80,82)<=9 || dist(cx,cy,120,82)<=9) cells[idx]=false;
+        } else if (state.eyes==='closed') {
+          if (cy>=79 && cy<=85 && ((cx>=71&&cx<=91)||(cx>=109&&cx<=129))) cells[idx]=false;
+        } else if (state.eyes==='x') {
+          if (inXShape(cx,cy,80,82,9) || inXShape(cx,cy,120,82,9)) cells[idx]=false;
+        }
+
+        if (state.mouth==='smile') {
+          if (dist(cx,cy,100,124)<=8 && cy>=120) cells[idx]=false;
+        } else if (state.mouth==='open') {
+          if (dist(cx,cy,100,126)<=15 && cy>=118) cells[idx]=false;
+        } else if (state.mouth==='flat') {
+          if (cy>=122&&cy<=128 && cx>=90&&cx<=110) cells[idx]=false;
+        }
+      }
+    }
+    return cells;
+  }
+
+  function drawSprite(state) {
+    const cells = buildSprite(state);
+    let html = '';
+    for (let row=0; row<GRID; row++){
+      for (let col=0; col<GRID; col++){
+        if (cells[row*GRID+col]) {
+          html += `<rect x="${col*CELL}" y="${row*CELL}" width="${CELL}" height="${CELL}"/>`;
+        }
+      }
+    }
+    pixelGroup.innerHTML = html;
+  }
+
+  function applyStageScale() {
+    const stage = getCurrentStage();
+    const scale = stageScale[stage.key] || 0.68;
+    dogScale.setAttribute('transform', `translate(100,110) scale(${scale}) translate(-100,-110)`);
+  }
+
+  function renderPet() {
+    applyStageScale();
+
+    let state = { eyes:'open', mouth:'smile', tailUp: tailFrame };
+
+    if (isGameOver) {
+      state.eyes = 'x'; state.mouth = 'flat';
+    } else if (isSleeping) {
+      state.eyes = 'closed'; state.mouth = 'flat';
+    } else if (hunger < 20 || happy < 20 || clean < 20) {
+      state.eyes = 'x'; state.mouth = 'flat';
+    } else if (happy > 70) {
+      state.eyes = 'open'; state.mouth = 'open';
+    } else {
+      state.eyes = 'open'; state.mouth = 'smile';
+    }
+
+    drawSprite(state);
+  }
+
+  // ===== 버튼 동작 =====
+  function feed() {
+    if (isGameOver || isSleeping) return;
+    hunger = Math.min(100, hunger + 20);
+    happy = Math.min(100, happy + 3);
+    showMessage("냠냠! 밥을 먹었어요");
+    showSpeech("냠냠!");
+    renderPet(); updateBars();
+  }
+
+  function play() {
+    if (isGameOver || isSleeping) return;
+    happy = Math.min(100, happy + 20);
+    energy = Math.max(0, energy - 10);
+    hunger = Math.max(0, hunger - 5);
+    showMessage("신난다! 공놀이를 했어요");
+    showSpeech("멍멍!");
+    renderPet(); updateBars();
+  }
+
+  function sleep() {
+    if (isGameOver) return;
+    if (isSleeping) {
+      isSleeping = false;
+      showMessage("잠에서 깼어요! 상쾌해요");
+    } else {
+      isSleeping = true;
+      showMessage("쿨쿨... 잠들었어요");
+    }
+    renderPet(); updateBars();
+  }
+
+  function cleanPet() {
+    if (isGameOver || isSleeping) return;
+    clean = Math.min(100, clean + 25);
+    happy = Math.min(100, happy + 5);
+    showMessage("깨끗해졌어요!");
+    showSpeech("멍!");
+    renderPet(); updateBars();
+  }
+
+  // ===== 시간 흐름 =====
+  function gameTick() {
+    if (isGameOver) return;
+    tickCount++;
+
+    if (!isSleeping) {
+      hunger = Math.max(0, hunger - 3);
+      happy = Math.max(0, happy - 2);
+      clean = Math.max(0, clean - 2);
+      energy = Math.max(0, energy - 2);
+    } else {
+      energy = Math.min(100, energy + 10);
+      hunger = Math.max(0, hunger - 1);
+      if (energy >= 100) {
+        isSleeping = false;
+        showMessage("잠에서 깼어요! 상쾌해요");
+      }
+    }
+
+    if (tickCount % 6 === 0) age++;
+
+    if (hunger <= 0 || happy <= 0 || clean <= 0) { endGame(); return; }
+
+    renderPet(); updateBars();
+  }
+
+  function endGame() {
+    isGameOver = true;
+    renderPet();
+    showMessage("강아지가 아파서 떠났어요... RESET을 눌러주세요");
+    restartBtn.style.display = "block";
+  }
+
+  function restartGame() {
+    hunger = 80; happy = 80; energy = 80; clean = 80;
+    age = 0; isSleeping = false; isGameOver = false; tickCount = 0;
+    restartBtn.style.display = "none";
+    showMessage("새 강아지가 태어났어요!");
+    renderPet(); updateBars();
+  }
+
+  // 꼬리 흔들기 애니메이션 (스프라이트 프레임 교체)
+  let tailInterval = null;
+  let tickInterval = null;
+  const introOverlay = document.getElementById('introOverlay');
+
+  function startGame() {
+    introOverlay.classList.add('hidden');
+    updateBars();
+    renderPet();
+
+    if (!tailInterval) {
+      tailInterval = setInterval(() => {
+        if (!isSleeping && !isGameOver) { tailFrame = !tailFrame; renderPet(); }
+      }, 400);
+    }
+    if (!tickInterval) {
+      tickInterval = setInterval(gameTick, 3000);
+    }
+  }
+
+  // 초기 화면(인트로)만 보여주고 게임은 시작하기 버튼을 눌러야 시작
+  updateBars();
+  renderPet();
+
+</script>
+
+</body>
+</html>

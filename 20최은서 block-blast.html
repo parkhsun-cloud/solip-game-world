@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>블록 게임</title>
+<style>
+  :root{
+    --bg1:#fff6b7; --bg2:#a6e3ff; --bg3:#ffc2e2;
+    --cell-empty:#ffffff; --cell-border:#ffd166;
+    --panel:#ffffffee; --text:#3a2e6e; --sub:#7c6fae;
+    --accent:#ff6b6b; --combo:#ff4fa3;
+    color-scheme: light;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none;}
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2) 55%, var(--bg3));
+    font-family: "Trebuchet MS", "Arial Rounded MT Bold", "Malgun Gothic", sans-serif;
+    color:var(--text); touch-action:none;}
+  #app{display:flex; flex-direction:column; align-items:center; height:100%; padding:14px 10px 10px; gap:10px;}
+
+  .topbar{display:flex; justify-content:space-between; align-items:center; width:100%; max-width:420px; gap:6px;}
+  .score-box{background:var(--panel); border:3px solid #ffd166; border-radius:18px; padding:8px 14px; text-align:center; min-width:84px;
+    box-shadow: 0 4px 0 #f4c430;}
+  .score-box .label{font-size:11px; color:var(--sub); letter-spacing:.5px; font-weight:800;}
+  .score-box .value{font-size:24px; font-weight:900; color:#ff6b6b;}
+  #best.value{color:#22c55e;}
+  .title{font-size:22px; font-weight:900; letter-spacing:.5px; color:#6d28d9;
+    text-shadow: 2px 2px 0 #fff, -1px -1px 0 #fff, 0 3px 0 #d946ef; white-space:nowrap;}
+
+  #board{
+    display:grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr);
+    gap:4px; width:min(92vw, 420px); aspect-ratio:1/1;
+    background:#fef3c7; border-radius:22px; padding:9px;
+    border:4px solid #fbbf24; box-shadow: 0 8px 0 #f59e0b, 0 12px 24px rgba(0,0,0,.15);
+    position:relative;
+  }
+  .cell{
+    background:var(--cell-empty); border-radius:9px; position:relative;
+    box-shadow: inset 0 0 0 2px #ffe8a3;
+    transition: background .12s, transform .12s;
+  }
+  .cell.filled{ box-shadow: 0 3px 0 rgba(255,255,255,.5) inset, 0 -3px 6px rgba(0,0,0,.15) inset; transform:scale(1.02);}
+  .cell.preview-ok{ background: rgba(74, 222, 128, .55); outline:3px solid #22c55e; outline-offset:-3px; border-radius:9px;}
+  .cell.preview-bad{ background: rgba(248, 113, 113, .45); outline:3px solid #ef4444; outline-offset:-3px; border-radius:9px;}
+  .cell.clearing{ animation: pop .32s ease forwards; }
+  @keyframes pop{
+    0%{transform:scale(1); filter:brightness(1);}
+    50%{transform:scale(1.25); filter:brightness(1.6);}
+    100%{transform:scale(0); filter:brightness(2); opacity:0;}
+  }
+
+  #tray{
+    display:flex; justify-content:center; gap:10px; width:min(92vw,420px);
+    padding:10px 4px; min-height:112px; align-items:center;
+  }
+  .piece-slot{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    min-height:98px; border-radius:18px; background:var(--panel);
+    border:3px dashed #c4b5fd; position:relative;
+  }
+  .piece-slot.empty{opacity:.25;}
+  .piece-grid{ display:grid; gap:3px; pointer-events:none; }
+  .piece-cell{ border-radius:6px; }
+  .piece-cell.on{ box-shadow: 0 3px 0 rgba(255,255,255,.4) inset; }
+  .piece-cell.off{ background:transparent; }
+
+  .drag-ghost{
+    position:fixed; top:0; left:0; pointer-events:none; z-index:999;
+    display:grid; gap:3px; opacity:.95; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35));
+  }
+  .drag-ghost .piece-cell.on{ box-shadow: 0 3px 0 rgba(255,255,255,.5) inset; }
+
+  #combo-toast{
+    position:fixed; top:22%; left:50%; transform:translate(-50%,-50%) scale(.6);
+    font-size:36px; font-weight:900; color:var(--combo);
+    -webkit-text-stroke: 2px #fff; text-shadow: 0 0 18px rgba(255,79,163,.6);
+    opacity:0; pointer-events:none; z-index:1000; white-space:nowrap;
+  }
+  #combo-toast.show{ animation: toast .9s ease forwards; }
+  @keyframes toast{
+    0%{opacity:0; transform:translate(-50%,-50%) scale(.5) rotate(-4deg);}
+    18%{opacity:1; transform:translate(-50%,-50%) scale(1.2) rotate(3deg);}
+    35%{transform:translate(-50%,-50%) scale(1) rotate(0deg);}
+    80%{opacity:1;}
+    100%{opacity:0; transform:translate(-50%,-60%) scale(1.05);}
+  }
+
+  #overlay{
+    position:fixed; inset:0; background:rgba(109,40,217,.55); display:none;
+    align-items:center; justify-content:center; z-index:2000; flex-direction:column; gap:12px; text-align:center; padding:20px;
+  }
+  #overlay.show{display:flex;}
+  #overlay .card{background:#fff; border-radius:26px; padding:32px 28px; border:5px solid #fbbf24; box-shadow:0 10px 0 #f59e0b;}
+  #overlay h2{font-size:30px; margin:0 0 8px; color:#6d28d9;}
+  #overlay p{margin:0; color:var(--sub); font-weight:800; font-size:18px;}
+  #restart{
+    background:linear-gradient(135deg,#4ade80,#22c55e); color:#fff; font-weight:900;
+    border:none; padding:14px 30px; border-radius:16px; font-size:18px; cursor:pointer; margin-top:14px;
+    box-shadow: 0 5px 0 #16a34a;
+  }
+  #restart:active{ transform:translateY(3px); box-shadow:0 2px 0 #16a34a; }
+  #hint{font-size:13px; color:#6d28d9; font-weight:700; text-align:center; max-width:380px; background:#ffffffcc; border-radius:14px; padding:8px 12px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="score-box"><div class="label">⭐ 점수</div><div class="value" id="score">0</div></div>
+    <div class="title">🧱 블록 게임</div>
+    <button id="soundBtn" class="score-box" style="cursor:pointer; font-size:22px; min-width:48px;">🔊</button>
+    <div class="score-box"><div class="label">🏆 최고</div><div class="value" id="best">0</div></div>
+  </div>
+
+  <div id="board"></div>
+  <div id="tray"></div>
+  <div id="hint">✋ 블록을 손가락으로 눌러서 옮겨 보세요! 가로·세로 줄을 꽉 채우면 팡! 터져요 🎉 한 번에 여러 줄을 지우면 콤보 보너스도 받을 수 있어요!</div>
+</div>
+
+<div id="combo-toast"></div>
+
+<div id="overlay">
+  <div class="card">
+    <h2>아쉬워요! 😵</h2>
+    <p id="finalScore">점수: 0</p>
+    <button id="restart">다시 도전하기 🔄</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- Audio engine (synthesized, no external files) ----
+  const Audio = (function(){
+    let ctx = null, master = null, musicOn = true, musicTimer = null, step = 0;
+    // upbeat 8-bit style arpeggio loop (C major pentatonic-ish, energetic)
+    const bpm = 128;
+    const stepDur = 60/bpm/2; // 16th-ish feel
+    const bassNotes  = [130.81,130.81,164.81,130.81, 196.00,196.00,220.00,196.00];
+    const leadNotes  = [523.25,659.25,783.99,659.25, 523.25,783.99,880.00,783.99,
+                         659.25,783.99,987.77,783.99, 659.25,880.00,987.77,880.00];
+    function ensureCtx(){
+      if(!ctx){
+        ctx = new (window.AudioContext||window.webkitAudioContext)();
+        master = ctx.createGain();
+        master.gain.value = 0.35;
+        master.connect(ctx.destination);
+      }
+      if(ctx.state==='suspended') ctx.resume();
+    }
+    function blip(freq, dur, type, gainVal, when, pan){
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, when);
+      g.gain.linearRampToValueAtTime(gainVal, when+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, when+dur);
+      o.connect(g);
+      if(pan!==undefined && ctx.createStereoPanner){
+        const p = ctx.createStereoPanner(); p.pan.value = pan;
+        g.connect(p); p.connect(master);
+      } else { g.connect(master); }
+      o.start(when); o.stop(when+dur+0.02);
+    }
+    function scheduleLoop(){
+      if(!musicOn) return;
+      const now = ctx.currentTime + 0.05;
+      for(let i=0;i<16;i++){
+        const t = now + i*stepDur;
+        // lead melody
+        blip(leadNotes[i%leadNotes.length], stepDur*0.9, 'square', 0.06, t, 0.15);
+        // bass every 2 steps
+        if(i%2===0) blip(bassNotes[(step+ (i/2)|0)%bassNotes.length], stepDur*1.7, 'triangle', 0.09, t, -0.1);
+        // hi-hat tick
+        if(i%2===1) blip(1800, 0.03, 'square', 0.015, t, 0);
+      }
+      step += 8;
+      musicTimer = setTimeout(scheduleLoop, stepDur*16*1000);
+    }
+    function startMusic(){
+      ensureCtx();
+      if(musicTimer) return;
+      scheduleLoop();
+    }
+    function stopMusic(){
+      if(musicTimer){ clearTimeout(musicTimer); musicTimer=null; }
+    }
+    function place(){
+      ensureCtx();
+      blip(440, 0.08, 'square', 0.18, ctx.currentTime, 0);
+    }
+    function lineClear(lines){
+      ensureCtx();
+      const base = 523.25;
+      for(let i=0;i<3;i++){
+        blip(base * Math.pow(2, i/6), 0.15, 'sawtooth', 0.14, ctx.currentTime + i*0.05, 0);
+      }
+    }
+    function combo(mult){
+      ensureCtx();
+      const notes = [523.25,659.25,783.99,1046.5,1318.5];
+      for(let i=0;i<Math.min(mult+1,5);i++){
+        blip(notes[i], 0.18, 'square', 0.2, ctx.currentTime + i*0.07, (i%2?0.2:-0.2));
+      }
+    }
+    function gameOver(){
+      ensureCtx();
+      [392,349.23,293.66,196].forEach((f,i)=> blip(f, 0.25, 'triangle', 0.16, ctx.currentTime + i*0.15, 0));
+    }
+    function toggle(){
+      musicOn = !musicOn;
+      if(musicOn) startMusic(); else stopMusic();
+      return musicOn;
+    }
+    return { startMusic, stopMusic, place, lineClear, combo, gameOver, toggle, ensureCtx, get musicOn(){return musicOn;} };
+  })();
+
+  const soundBtn = document.getElementById('soundBtn');
+  let audioStarted = false;
+  function kickAudioOnce(){
+    if(audioStarted) return;
+    audioStarted = true;
+    Audio.startMusic();
+  }
+  soundBtn.addEventListener('click', ()=>{
+    kickAudioOnce();
+    const on = Audio.toggle();
+    soundBtn.textContent = on ? '🔊' : '🔇';
+  });
+  window.addEventListener('pointerdown', kickAudioOnce, {once:true});
+
+  const SIZE = 8;
+  const boardEl = document.getElementById('board');
+  const trayEl = document.getElementById('tray');
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+  const overlayEl = document.getElementById('overlay');
+  const finalScoreEl = document.getElementById('finalScore');
+  const comboToast = document.getElementById('combo-toast');
+
+  const BASE_HUES = [200, 330, 265, 155, 40, 350, 215]; // 7 base hues, rotated as score hits x100
+  let hueShift = 0; // increases every 100 score, shifts the whole palette
+  function colorFor(idx){
+    const hue = (BASE_HUES[idx % BASE_HUES.length] + hueShift) % 360;
+    return [`hsl(${hue},85%,62%)`, `hsl(${hue},80%,42%)`];
+  }
+
+  const SHAPES = [
+    [[1]],
+    [[1,1]],
+    [[1],[1]],
+    [[1,1,1]],
+    [[1],[1],[1]],
+    [[1,1],[1,1]],
+    [[1,1,1],[1,0,0]],
+    [[1,1,1],[0,0,1]],
+    [[1,0,0],[1,1,1]],
+    [[0,0,1],[1,1,1]],
+    [[1,1],[1,0]],
+    [[1,1],[0,1]],
+    [[0,1],[1,1]],
+    [[1,0],[1,1]],
+    [[1,1,1,1]],
+    [[1],[1],[1],[1]],
+    [[1,1,1],[1,1,1]],
+    [[1,0],[1,0],[1,1]],
+    [[1,1],[0,1],[0,1]],
+    [[0,1],[0,1],[1,1]],
+    [[1,1],[1,0],[1,0]],
+  ];
+
+  let grid, cellEls, score, best, pieces, dragging, recordBroken;
+
+  function init(){
+    grid = Array.from({length:SIZE}, ()=>Array(SIZE).fill(null));
+    score = 0;
+    recordBroken = false;
+    hueShift = 0;
+    best = parseInt(localStorage.getItem('bb_best')||'0',10) || 0;
+    dragging = null;
+    updateScore();
+    bestEl.textContent = best;
+    buildBoard();
+    pieces = [genPiece(), genPiece(), genPiece()];
+    renderTray();
+    overlayEl.classList.remove('show');
+  }
+
+  function buildBoard(){
+    boardEl.innerHTML = '';
+    cellEls = [];
+    for(let r=0;r<SIZE;r++){
+      const row=[];
+      for(let c=0;c<SIZE;c++){
+        const d = document.createElement('div');
+        d.className='cell';
+        d.dataset.r=r; d.dataset.c=c;
+        boardEl.appendChild(d);
+        row.push(d);
+      }
+      cellEls.push(row);
+    }
+  }
+
+  function genPiece(){
+    const shape = SHAPES[Math.floor(Math.random()*SHAPES.length)];
+    const colorIndex = Math.floor(Math.random()*BASE_HUES.length);
+    return {shape, colorIndex, id: Math.random().toString(36).slice(2)};
+  }
+
+  function renderTray(){
+    trayEl.innerHTML = '';
+    pieces.forEach((p, idx)=>{
+      const slot = document.createElement('div');
+      slot.className = 'piece-slot' + (p ? '' : ' empty');
+      if(p){
+        const pg = buildPieceGrid(p, 22);
+        pg.classList.add('piece-grid-static');
+        slot.appendChild(pg);
+        slot.addEventListener('pointerdown', (e)=>startDrag(e, idx));
+      }
+      trayEl.appendChild(slot);
+    });
+  }
+
+  function buildPieceGrid(piece, cellSize){
+    const rows = piece.shape.length, cols = piece.shape[0].length;
+    const g = document.createElement('div');
+    g.className = 'piece-grid';
+    g.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+    g.style.gridTemplateRows = `repeat(${rows}, ${cellSize}px)`;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const on = piece.shape[r][c]===1;
+        const cell = document.createElement('div');
+        cell.className = 'piece-cell ' + (on?'on':'off');
+        if(on){
+          const col = colorFor(piece.colorIndex);
+          cell.style.background = `linear-gradient(135deg, ${col[0]}, ${col[1]})`;
+        }
+        cell.style.width = cellSize+'px';
+        cell.style.height = cellSize+'px';
+        g.appendChild(cell);
+      }
+    }
+    return g;
+  }
+
+  function updateScore(){
+    scoreEl.textContent = score;
+    if(score>best){
+      best=score; bestEl.textContent=best; localStorage.setItem('bb_best', String(best));
+      if(!recordBroken){
+        recordBroken = true;
+        hueShift = (hueShift + 137) % 360;
+        renderGrid();
+        renderTray();
+        flashBoard();
+        showCombo('🏆 신기록 달성!');
+        Audio.combo(3);
+      }
+    }
+  }
+
+  function flashBoard(){
+    boardEl.style.transition = 'filter .25s ease';
+    boardEl.style.filter = 'brightness(1.4)';
+    setTimeout(()=>{ boardEl.style.filter = 'brightness(1)'; }, 250);
+  }
+
+  // ---- Drag logic ----
+  let ghostEl = null;
+  let boardRect = null;
+  let cellSize = 0;
+
+  function startDrag(e, idx){
+    e.preventDefault();
+    const piece = pieces[idx];
+    if(!piece) return;
+    boardRect = boardEl.getBoundingClientRect();
+    cellSize = (boardRect.width - 8*2 - 4*7) / 8; // padding 8, gap 4, 8 cells
+
+    ghostEl = buildPieceGrid(piece, cellSize);
+    ghostEl.classList.add('drag-ghost');
+    document.body.appendChild(ghostEl);
+
+    dragging = {piece, idx, offsetR: Math.floor(piece.shape.length/2), offsetC: Math.floor(piece.shape[0].length/2)};
+
+    positionGhost(e.clientX, e.clientY);
+    updatePreview(e.clientX, e.clientY);
+
+    // hide the tray slot piece while dragging
+    trayEl.children[idx].style.visibility = 'hidden';
+
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragEnd);
+  }
+
+  function positionGhost(x,y){
+    if(!ghostEl) return;
+    const rows = dragging.piece.shape.length, cols = dragging.piece.shape[0].length;
+    const w = cols*cellSize + (cols-1)*3;
+    const h = rows*cellSize + (rows-1)*3;
+    // lift finger offset so block appears above finger
+    ghostEl.style.left = (x - w/2) + 'px';
+    ghostEl.style.top = (y - h/2 - 60) + 'px';
+  }
+
+  function boardPosFromPoint(x, y){
+    // account for the lift offset used for visual ghost (60px) -> use actual finger point for logic, minus lift for feel
+    const liftY = y - 60;
+    const localX = x - boardRect.left - 8;
+    const localY = liftY - boardRect.top - 8;
+    const step = cellSize + 4;
+    const centerCol = Math.round(localX/step - dragging.offsetC);
+    const centerRow = Math.round(localY/step - dragging.offsetR);
+    return {row: centerRow, col: centerCol};
+  }
+
+  function clearPreview(){
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+      cellEls[r][c].classList.remove('preview-ok','preview-bad');
+    }
+  }
+
+  function canPlace(shape, row, col){
+    for(let r=0;r<shape.length;r++){
+      for(let c=0;c<shape[0].length;c++){
+        if(shape[r][c]!==1) continue;
+        const gr=row+r, gc=col+c;
+        if(gr<0||gr>=SIZE||gc<0||gc>=SIZE) return false;
+        if(grid[gr][gc]!=null) return false;
+      }
+    }
+    return true;
+  }
+
+  function updatePreview(x,y){
+    clearPreview();
+    const {row,col} = boardPosFromPoint(x,y);
+    const ok = canPlace(dragging.piece.shape, row, col);
+    const shape = dragging.piece.shape;
+    for(let r=0;r<shape.length;r++){
+      for(let c=0;c<shape[0].length;c++){
+        if(shape[r][c]!==1) continue;
+        const gr=row+r, gc=col+c;
+        if(gr<0||gr>=SIZE||gc<0||gc>=SIZE) continue;
+        cellEls[gr][gc].classList.add(ok?'preview-ok':'preview-bad');
+      }
+    }
+    dragging.lastPos = {row,col,ok};
+  }
+
+  function onDragMove(e){
+    positionGhost(e.clientX, e.clientY);
+    updatePreview(e.clientX, e.clientY);
+  }
+
+  function onDragEnd(e){
+    window.removeEventListener('pointermove', onDragMove);
+    window.removeEventListener('pointerup', onDragEnd);
+    clearPreview();
+    if(ghostEl){ ghostEl.remove(); ghostEl=null; }
+
+    const idx = dragging.idx;
+    const {row,col,ok} = dragging.lastPos || {};
+    if(ok){
+      placePiece(dragging.piece, row, col);
+      pieces[idx] = null;
+      if(pieces.every(p=>p===null)){
+        pieces = [genPiece(), genPiece(), genPiece()];
+      }
+      renderTray();
+      checkGameOver();
+    } else {
+      trayEl.children[idx].style.visibility = 'visible';
+    }
+    dragging = null;
+  }
+
+  function placePiece(piece, row, col){
+    const shape = piece.shape;
+    let placedCount = 0;
+    for(let r=0;r<shape.length;r++){
+      for(let c=0;c<shape[0].length;c++){
+        if(shape[r][c]!==1) continue;
+        grid[row+r][col+c] = piece.colorIndex;
+        placedCount++;
+      }
+    }
+    score += placedCount;
+    updateScore();
+    renderGrid();
+    Audio.place();
+    setTimeout(()=>resolveLines(), 60);
+  }
+
+  function renderGrid(){
+    for(let r=0;r<SIZE;r++){
+      for(let c=0;c<SIZE;c++){
+        const el = cellEls[r][c];
+        const val = grid[r][c];
+        if(val!=null){
+          const col = colorFor(val);
+          el.classList.add('filled');
+          el.style.background = `linear-gradient(135deg, ${col[0]}, ${col[1]})`;
+        } else {
+          el.classList.remove('filled');
+          el.style.background = '';
+        }
+      }
+    }
+  }
+
+  function resolveLines(){
+    const fullRows = [];
+    const fullCols = [];
+    for(let r=0;r<SIZE;r++){
+      if(grid[r].every(v=>v!=null)) fullRows.push(r);
+    }
+    for(let c=0;c<SIZE;c++){
+      let full = true;
+      for(let r=0;r<SIZE;r++){ if(grid[r][c]==null){ full=false; break; } }
+      if(full) fullCols.push(c);
+    }
+
+    const totalLines = fullRows.length + fullCols.length;
+    if(totalLines===0) return;
+
+    // animate clearing cells
+    const cellsToClear = new Set();
+    fullRows.forEach(r=>{ for(let c=0;c<SIZE;c++) cellsToClear.add(r+','+c); });
+    fullCols.forEach(c=>{ for(let r=0;r<SIZE;r++) cellsToClear.add(r+','+c); });
+
+    cellsToClear.forEach(key=>{
+      const [r,c] = key.split(',').map(Number);
+      cellEls[r][c].classList.add('clearing');
+    });
+
+    const lineScore = totalLines * 10 * totalLines; // more lines = more points per line
+    score += lineScore;
+    Audio.lineClear(totalLines);
+
+    // Combo: placing a piece that clears lines AND leaves them "다 맞아떨어지면" (perfectly clears) -> when 2+ lines cleared at once, bonus +100
+    let comboBonus = 0;
+    if(totalLines >= 2){
+      comboBonus = 100 * (totalLines - 1);
+      score += comboBonus;
+      Audio.combo(totalLines);
+    }
+    updateScore();
+
+    if(comboBonus>0){
+      showCombo(`🎉 콤보 x${totalLines}! +${comboBonus}점`);
+    }
+
+    setTimeout(()=>{
+      fullRows.forEach(r=>{ for(let c=0;c<SIZE;c++) grid[r][c]=null; });
+      fullCols.forEach(c=>{ for(let r=0;r<SIZE;r++) grid[r][c]=null; });
+      cellsToClear.forEach(key=>{
+        const [r,c] = key.split(',').map(Number);
+        cellEls[r][c].classList.remove('clearing');
+      });
+      renderGrid();
+    }, 300);
+  }
+
+  function showCombo(text){
+    comboToast.textContent = text;
+    comboToast.classList.remove('show');
+    void comboToast.offsetWidth;
+    comboToast.classList.add('show');
+  }
+
+  function canPlaceAnywhere(piece){
+    for(let r=0;r<SIZE;r++){
+      for(let c=0;c<SIZE;c++){
+        if(canPlace(piece.shape, r, c)) return true;
+      }
+    }
+    return false;
+  }
+
+  function checkGameOver(){
+    const alive = pieces.some(p => p && canPlaceAnywhere(p));
+    const anyPieces = pieces.some(p=>p);
+    if(anyPieces && !alive){
+      finalScoreEl.textContent = `점수: ${score}`;
+      overlayEl.classList.add('show');
+      Audio.stopMusic();
+      Audio.gameOver();
+    }
+  }
+
+  document.getElementById('restart').addEventListener('click', ()=>{
+    init();
+    if(Audio.musicOn) Audio.startMusic();
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>

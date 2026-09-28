@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로 과녁 슈팅 게임</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0d0f18;
+            font-family: 'Pretendard', sans-serif;
+            cursor: crosshair;
+        }
+
+        #game-stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, #1a1c2e 0%, #080910 100%);
+            overflow: hidden;
+        }
+
+        /* HUD Overlay */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-item {
+            background: rgba(15, 18, 30, 0.85);
+            padding: 12px 24px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-size: 20px;
+            font-weight: 800;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+        }
+
+        .hud-item span {
+            color: #ff4757;
+        }
+
+        /* Target Styles */
+        .target {
+            position: absolute;
+            border-radius: 50%;
+            cursor: crosshair;
+            transform: translate(-50%, -50%) scale(0);
+            transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.27);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+
+        .ring-outer {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: #f1f2f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #2f3542;
+        }
+
+        .ring-mid {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            background: #2e86de;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .ring-inner {
+            width: 40%;
+            height: 40%;
+            border-radius: 50%;
+            background: #ff9f43;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .ring-center {
+            width: 20%;
+            height: 20%;
+            border-radius: 50%;
+            background: #ff4757;
+            box-shadow: 0 0 8px #ff4757;
+        }
+
+        /* Particles */
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        /* Score Popups */
+        .score-popup {
+            position: absolute;
+            font-size: 26px;
+            font-weight: 900;
+            pointer-events: none;
+            animation: floatUp 0.6s ease-out forwards;
+            text-shadow: 0 3px 8px rgba(0,0,0,0.9);
+            z-index: 20;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(0.7); }
+            50% { transform: translate(-50%, -100%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -130%) scale(1); }
+        }
+
+        /* Modal Overlay */
+        .modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: #141722;
+            padding: 35px 50px;
+            border-radius: 24px;
+            text-align: center;
+            color: #fff;
+            border: 2px solid #ff4757;
+            box-shadow: 0 10px 40px rgba(255, 71, 87, 0.35);
+        }
+
+        .modal-title {
+            font-size: 34px;
+            margin-bottom: 15px;
+            color: #ff4757;
+            font-weight: 900;
+        }
+
+        .modal-score {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            color: #dcdde1;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: #fff;
+            border: none;
+            padding: 14px 36px;
+            font-size: 19px;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .btn-start:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 71, 87, 0.6);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-stage">
+        <div id="hud">
+            <div class="hud-item">점수: <span id="score">0</span></div>
+            <div class="hud-item">콤보: <span id="combo">0</span>x (배율 x<span id="multiplier">1.0</span>)</div>
+            <div class="hud-item">목숨: <span id="lives">❤️❤️❤️</span></div>
+        </div>
+    </div>
+
+    <!-- Start / Game Over Modal -->
+    <div class="modal" id="game-modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-title">🎯 스피드 과녁 슈팅</div>
+            <div class="modal-score" id="modal-desc">
+                움직이는 과녁의 **중앙(Bullseye)**을 연속 명중시켜 콤보를 만드세요!<br>
+                작은 과녁일수록 더 많은 점수를 얻으며, 빈 곳을 클릭하면 감점됩니다.
+            </div>
+            <button class="btn-start" id="start-btn" onclick="startGame()">게임 시작</button>
+        </div>
+    </div>
+
+    <script>
+        const stage = document.getElementById('game-stage');
+        const scoreTxt = document.getElementById('score');
+        const comboTxt = document.getElementById('combo');
+        const multiplierTxt = document.getElementById('multiplier');
+        const livesTxt = document.getElementById('lives');
+        const modal = document.getElementById('game-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+
+        let score = 0;
+        let combo = 0;
+        let lives = 3;
+        let isPlaying = false;
+        let spawnInterval = null;
+        let spawnDelay = 900;
+        let activeTargets = [];
+
+        function getMultiplier() {
+            if (combo >= 20) return 3.0;
+            if (combo >= 10) return 2.0;
+            if (combo >= 5) return 1.5;
+            if (combo >= 2) return 1.2;
+            return 1.0;
+        }
+
+        function updateHUD() {
+            scoreTxt.innerText = score.toLocaleString();
+            comboTxt.innerText = combo;
+            multiplierTxt.innerText = getMultiplier().toFixed(1);
+            livesTxt.innerText = '❤️'.repeat(Math.max(0, lives));
+        }
+
+        function startGame() {
+            score = 0;
+            combo = 0;
+            lives = 3;
+            spawnDelay = 900;
+            isPlaying = true;
+            
+            updateHUD();
+            modal.style.display = 'none';
+
+            activeTargets.forEach(t => t.element.remove());
+            activeTargets = [];
+
+            scheduleNextSpawn();
+            requestAnimationFrame(updateMovingTargets);
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            clearTimeout(spawnInterval);
+
+            modalTitle.innerText = "게임 오버!";
+            modalDesc.innerHTML = `최종 점수: <strong style="color:#ffdd59; font-size:24px;">${score.toLocaleString()}점</strong><br>최대 콤보: ${combo}x`;
+            document.getElementById('start-btn').innerText = "다시 도전";
+            modal.style.display = 'flex';
+        }
+
+        function scheduleNextSpawn() {
+            if (!isPlaying) return;
+
+            spawnTarget();
+            
+            spawnDelay = Math.max(350, spawnDelay * 0.975);
+            spawnInterval = setTimeout(scheduleNextSpawn, spawnDelay);
+        }
+
+        function spawnTarget() {
+            if (!isPlaying) return;
+
+            const target = document.createElement('div');
+            target.className = 'target';
+
+            const size = Math.floor(Math.random() * 60) + 50;
+            target.style.width = `${size}px`;
+            target.style.height = `${size}px`;
+
+            const padding = 120;
+            let posX = Math.random() * (window.innerWidth - padding * 2) + padding;
+            let posY = Math.random() * (window.innerHeight - padding * 2) + padding;
+            
+            target.style.left = `${posX}px`;
+            target.style.top = `${posY}px`;
+
+            target.innerHTML = `
+                <div class="ring-outer">
+                    <div class="ring-mid">
+                        <div class="ring-inner">
+                            <div class="ring-center"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            stage.appendChild(target);
+
+            const speedScale = (120 - size) / 60 + 1;
+            const vx = (Math.random() - 0.5) * 2.5 * speedScale;
+            const vy = (Math.random() - 0.5) * 2.5 * speedScale;
+
+            const targetObj = { element: target, x: posX, y: posY, vx, vy, size };
+            activeTargets.push(targetObj);
+
+            requestAnimationFrame(() => {
+                target.style.transform = 'translate(-50%, -50%) scale(1)';
+            });
+
+            const timeoutDuration = Math.max(1000, 1800 - (1000 - spawnDelay) * 0.8);
+            
+            const timer = setTimeout(() => {
+                removeTarget(targetObj, true);
+            }, timeoutDuration);
+
+            targetObj.timer = timer;
+
+            target.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                if (!isPlaying) return;
+
+                clearTimeout(targetObj.timer);
+
+                const rect = target.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
+                const radius = rect.width / 2;
+
+                let basePoints = Math.round((120 - size) * 2);
+                let hitText = "GOOD";
+                let color = "#48dbfb";
+
+                if (dist < radius * 0.25) { 
+                    basePoints += 200;
+                    hitText = "🎯 BULLSEYE!!";
+                    color = "#ff4757";
+                } else if (dist < radius * 0.5) { 
+                    basePoints += 100;
+                    hitText = "GREAT!";
+                    color = "#ffdd59";
+                }
+
+                combo++;
+                const mult = getMultiplier();
+                const finalPoints = Math.round(basePoints * mult);
+                score += finalPoints;
+
+                createExplosion(e.clientX, e.clientY, color);
+                showScorePopup(e.clientX, e.clientY, `+${finalPoints} (${hitText})`, color);
+                updateHUD();
+
+                removeTarget(targetObj, false);
+            });
+        }
+
+        function removeTarget(targetObj, missed) {
+            const idx = activeTargets.indexOf(targetObj);
+            if (idx > -1) activeTargets.splice(idx, 1);
+
+            if (missed && isPlaying) {
+                combo = 0;
+                lives--;
+                updateHUD();
+
+                targetObj.element.style.transform = 'translate(-50%, -50%) scale(0)';
+                setTimeout(() => targetObj.element.remove(), 150);
+
+                if (lives <= 0) gameOver();
+            } else {
+                targetObj.element.style.transform = 'translate(-50%, -50%) scale(1.4)';
+                targetObj.element.style.opacity = '0';
+                targetObj.element.style.transition = 'all 0.12s ease-out';
+                setTimeout(() => targetObj.element.remove(), 120);
+            }
+        }
+
+        function updateMovingTargets() {
+            if (!isPlaying) return;
+
+            activeTargets.forEach(t => {
+                t.x += t.vx;
+                t.y += t.vy;
+
+                if (t.x < 80 || t.x > window.innerWidth - 80) t.vx *= -1;
+                if (t.y < 80 || t.y > window.innerHeight - 80) t.vy *= -1;
+
+                t.element.style.left = `${t.x}px`;
+                t.element.style.top = `${t.y}px`;
+            });
+
+            requestAnimationFrame(updateMovingTargets);
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.backgroundColor = color;
+
+                const pSize = Math.random() * 6 + 4;
+                particle.style.width = `${pSize}px`;
+                particle.style.height = `${pSize}px`;
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+
+                stage.appendChild(particle);
+
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 3;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+                let opacity = 1;
+
+                let pAnim = setInterval(() => {
+                    x += vx;
+                    y += vy;
+                    opacity -= 0.05;
+                    particle.style.left = `${x}px`;
+                    particle.style.top = `${y}px`;
+                    particle.style.opacity = opacity;
+
+                    if (opacity <= 0) {
+                        clearInterval(pAnim);
+                        particle.remove();
+                    }
+                }, 20);
+            }
+        }
+
+        function showScorePopup(x, y, text, color) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.innerText = text;
+            popup.style.color = color;
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            stage.appendChild(popup);
+            setTimeout(() => popup.remove(), 600);
+        }
+
+        stage.addEventListener('mousedown', (e) => {
+            if (isPlaying && !e.target.closest('.target')) {
+                combo = 0;
+                score = Math.max(0, score - 50);
+                showScorePopup(e.clientX, e.clientY, `-50 (MISS!)`, "#ff4757");
+                updateHUD();
+            }
+        });
+    </script>
+</body>
+</html>

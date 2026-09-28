@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌈 알록달록 나의 카페</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,"Malgun Gothic","Noto Sans KR",sans-serif;background:linear-gradient(135deg,#fff3f8,#fffbea,#eaf9ff);color:#573b35}
+button{font:inherit;cursor:pointer;border:0}
+header{background:linear-gradient(135deg,#ff8fc7,#ffc75f);color:white;padding:22px 15px;text-align:center;border-bottom:6px solid white;box-shadow:0 5px 15px #0002}
+header h1{margin:0 0 8px;font-size:clamp(26px,6vw,40px);text-shadow:2px 3px #0002}
+.subtitle{font-weight:bold;margin-bottom:12px}.stats{display:flex;justify-content:center;gap:9px;flex-wrap:wrap}
+.stat{background:white;color:#555;padding:8px 14px;border-radius:20px;font-weight:bold;box-shadow:0 3px 8px #0002}
+nav{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;padding:12px;background:white;position:sticky;top:0;z-index:20;box-shadow:0 3px 10px #0001}
+nav button{background:#ffe5f1;color:#555;padding:10px 15px;border-radius:20px;font-weight:bold}
+nav button:hover,nav button.active{background:#ff70ae;color:white;transform:translateY(-2px)}
+main{max-width:1100px;margin:auto;padding:16px}.page{display:none}.page.active{display:block}
+.panel{background:white;border-radius:25px;padding:18px;margin-bottom:17px;border:4px solid #f3c4a5;box-shadow:0 5px 0 #e8c6a5}
+.panel h2{margin:0 0 12px;color:#a95a42}.small{color:#888;font-size:14px}
+.message{background:#fff6c9;border:2px dashed #ffc94d;border-radius:15px;padding:12px;margin:10px 0;text-align:center;font-weight:bold}
+.order{background:linear-gradient(135deg,#fff0a9,#ffe4ef);border-radius:20px;padding:16px;text-align:center;border:3px dashed #e6ad39}.order .big{font-size:50px}
+.order-name{font-size:26px;font-weight:bold;color:#a66b00}.recipe{display:flex;justify-content:center;gap:7px;flex-wrap:wrap;margin:10px}
+.recipe span{background:white;padding:6px 10px;border-radius:15px;font-size:14px;font-weight:bold}
+.customer{display:flex;align-items:center;justify-content:center;gap:12px;background:#f2e8ff;border-radius:18px;padding:12px;margin-top:12px}
+.customer .face{font-size:52px}.customer p{margin:4px 0;font-weight:bold}
+.main-btn{border-radius:18px;padding:12px 18px;background:#ff77ad;color:white;font-weight:bold;box-shadow:0 4px #df5189;margin:4px}
+.main-btn:active{transform:translateY(3px);box-shadow:none}.layout{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}
+.card{background:white;border-radius:20px;padding:14px;text-align:center;border:3px solid #f5dce8;box-shadow:0 4px 10px #0001;transition:.2s}
+.card:hover{transform:translateY(-4px) rotate(-1deg)}.card .emoji{font-size:46px;margin-bottom:7px}.card h3{margin:5px 0;color:#555}.card p{margin:6px 0}
+.card button{border-radius:14px;padding:9px 13px;background:#ffd86b;font-weight:bold}.card button:hover{background:#ffc83d}
+.ingredients{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.ingredient{background:#fff5ed;border:3px solid #f4c9ae;border-radius:17px;padding:10px 4px;min-height:105px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-weight:bold}
+.ingredient .emoji{font-size:34px}.ingredient small{font-size:11px;color:#9c7164}.ingredient:active{transform:scale(.94)}
+.cup-area{text-align:center}.cup{width:155px;height:180px;margin:10px auto 15px;border:6px solid #b46e49;border-top:0;border-radius:8px 8px 30px 30px;background:#ffffffaa;position:relative;overflow:visible;display:flex;align-items:flex-end;justify-content:center}
+.cup:before{content:"";position:absolute;top:0;left:0;width:100%;height:7px;background:#b46e49}.handle{position:absolute;right:-34px;top:50px;width:40px;height:70px;border:7px solid #b46e49;border-left:0;border-radius:0 25px 25px 0}
+.liquid{width:100%;height:0;background:#c98a54;transition:.5s;position:relative}.liquid:after{content:"";position:absolute;top:0;left:0;right:0;height:7px;background:#ffffff55}
+.cup-label{position:absolute;top:45%;width:100%;font-size:18px;font-weight:bold;color:#795344;z-index:2}.added{min-height:45px;background:#fff5e9;border-radius:14px;padding:9px;margin-bottom:12px;font-size:14px}
+.actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.action{padding:12px 15px;border-radius:18px;color:white;font-weight:bold;box-shadow:0 4px #c58a77}.action:disabled{opacity:.45;cursor:not-allowed}
+.mix{background:#ff8c42}.stir{background:#7d9be8}.serve{background:#5bbd79}.clear{background:#a9a0d8}
+.progress{height:12px;background:#f5ded1;border-radius:20px;overflow:hidden;margin:12px 0}.progress>div{height:100%;background:#70cfa0;width:0%;transition:.3s}
+.levelbox{background:#e8f7ff;border:3px solid #a6dff4;border-radius:18px;padding:12px;text-align:center;margin-bottom:16px}
+.levelbar{height:14px;background:#cceaf6;border-radius:20px;overflow:hidden;margin-top:8px}.levelbar div{height:100%;background:#54bde8;width:0%;transition:.4s}
+.menu{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.drink{background:#fff5ed;border:2px solid #f4c9ae;border-radius:14px;padding:11px 5px;font-weight:bold;color:#573b35}.drink.active{background:#ffe0ed;border-color:#ff76a4;border-width:3px}
+.price{color:#ff8b00;font-weight:bold}.locked{opacity:.45;filter:grayscale(.6)}.owned{border-color:#72d98a;background:#effff2}.shop-count{background:#e7f8ff;padding:8px;border-radius:12px;margin-top:7px;font-size:13px}
+.background-box{min-height:160px;border-radius:25px;display:flex;justify-content:center;align-items:center;font-size:55px;margin-bottom:15px;border:5px solid white;box-shadow:0 5px 15px #0002;flex-wrap:wrap;gap:8px}
+.bg-pink{background:linear-gradient(135deg,#ffc5df,#fff0f7)}.bg-sky{background:linear-gradient(135deg,#aee8ff,#eafaff)}.bg-forest{background:linear-gradient(135deg,#bdebb7,#efffea)}.bg-sea{background:linear-gradient(135deg,#8ee8df,#e5ffff)}.bg-star{background:linear-gradient(135deg,#30235c,#8b70d6)}
+.decor-display{text-align:center;font-size:50px;min-height:70px}
+@media(max-width:650px){.layout{grid-template-columns:1fr}.menu{grid-template-columns:repeat(2,1fr)}}@media(max-width:400px){.ingredients{grid-template-columns:repeat(2,1fr)}nav button{padding:9px 10px;font-size:13px}}
+</style>
+</head>
+<body>
+<header><h1>🌈 알록달록 나의 카페 ☕</h1><div class="subtitle">내가 직접 만드는 재미있는 카페 게임!</div>
+<div class="stats"><div class="stat">🪙 <span id="coins">100</span> 코인</div><div class="stat">⭐ <span id="stars">0</span> 별</div><div class="stat">🏆 레벨 <span id="level">1</span></div><div class="stat">👥 <span id="served">0</span>명</div></div></header>
+<nav><button class="active" onclick="showPage('make',this)">☕ 만들기</button><button onclick="showPage('menu',this)">📖 메뉴</button><button onclick="showPage('shop',this)">🛍️ 음료 사기</button><button onclick="showPage('decorate',this)">🎨 카페 꾸미기</button></nav>
+<main>
+<section id="make" class="page active">
+
+<div class="levelbox">
+  <div>🏆 현재 레벨 <b id="level2">1</b></div>
+  <div class="progress"><div id="levelBar"></div></div>
+  <div class="small" id="levelCount">다음 레벨까지 성공 3번</div>
+  <div class="small" id="rank">🌱 초보 바리스타</div>
+</div>
+
+<div class="message" style="background:#eef9ff;border-color:#9edff5;">
+  📋 주문 → 🧺 재료 → 🍹 만들기 → 📖 메뉴
+</div>
+
+<div class="panel order">
+  <h2>📋 지금 손님의 주문!</h2>
+  <div class="big" id="orderEmoji">🥤</div>
+  <div class="order-name" id="orderName">주문 준비 중...</div>
+  <p id="orderDesc">맛있는 음료를 부탁해요!</p>
+  <div class="recipe" id="recipe"></div>
+  <div class="customer">
+    <div class="face" id="customerFace">🐰</div>
+    <div><p id="customerName">손님</p><p>맛있는 음료 부탁해요! 💕</p></div>
+  </div>
+  <br><button class="main-btn" onclick="newOrder()">🔄 새 주문</button>
+</div>
+
+<div class="panel">
+  <h2>🧺 재료 바구니</h2>
+  <p>재료를 <b>컵으로 끌어오세요!</b></p>
+  <div class="ingredients" id="ingredients"></div>
+  <p class="small">💡 재료를 클릭해도 컵에 들어가요!</p>
+</div>
+
+<div class="panel cup-area">
+  <h2>🍹 음료 만들기</h2>
+  <div class="cup" id="cup" ondragover="allowDrop(event)" ondrop="dropIngredient(event)">
+    <div class="handle"></div>
+    <div class="liquid" id="liquid"></div>
+    <div class="cup-label" id="cupLabel">빈 컵</div>
+  </div>
+  <div class="added" id="added">아직 넣은 재료가 없어요.</div>
+  <div class="actions">
+    <button class="action mix" id="mixBtn" onclick="mixDrink()" disabled>🌀 믹서기</button>
+    <button class="action stir" id="stirBtn" onclick="stirDrink()" disabled>🥄 저어 만들기</button>
+    <button class="action clear" onclick="clearCup()">🗑️ 비우기</button>
+  </div>
+  <div class="progress"><div id="progress"></div></div>
+  <button class="action serve" id="serveBtn" onclick="serveDrink()" disabled>🍹 손님에게 서빙!</button>
+  <div class="message" id="message">재료를 컵에 넣어 보세요! 😊</div>
+</div>
+
+<div class="panel">
+  <h2>📖 음료 메뉴</h2>
+  <div class="menu" id="drinkMenu"></div>
+  <p class="small">메뉴를 눌러 만들 음료를 선택할 수도 있어요!</p>
+</div>
+
+</section>
+<section id="menu" class="page"><div class="panel"><h2>📖 우리 카페 메뉴</h2><p>레벨이 올라가면 새로운 메뉴가 열려요! 🔓</p><div class="grid" id="menuList"></div></div></section>
+<section id="shop" class="page"><div class="panel"><h2>🛍️ 음료 상점</h2><p>카페에서 열심히 일해서 번 🪙 코인으로 원하는 음료를 구매해 보세요!</p><div class="message">🪙 현재 코인: <b id="shopCoins">100</b></div><div class="grid" id="drinkShop"></div></div>
+<div class="panel"><h2>🎒 내가 산 음료</h2><p class="small">구매한 음료가 여기에 차곡차곡 모여요! ✨</p><div class="grid" id="myDrinks"></div></div></section>
+<section id="decorate" class="page"><div class="panel"><h2>🎨 나의 카페</h2><div id="cafePreview"></div><div class="decor-display" id="decorDisplay">☕ 🌷 🧸</div><p style="text-align:center">내 카페를 마음껏 꾸며보세요! 🌈</p></div>
+<div class="panel"><h2>🏠 카페 배경</h2><div class="grid" id="backgroundShop"></div></div><div class="panel"><h2>✨ 카페 장식품</h2><div class="grid" id="decorShop"></div></div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let coins=100,stars=0,served=0,success=0,level=1,currentOrder=null,added=[],mixed=false,madeAction="";
+let ownedBackground=["pink"],ownedDecor=[],currentBackground="pink",currentDecor=[],myDrinks=[],unlockedShopDrinks=[];
+const ingredients=[
+{name:"우유",id:"milk",emoji:"🥛"},{name:"커피",id:"coffee",emoji:"☕"},{name:"딸기",id:"strawberry",emoji:"🍓"},{name:"바나나",id:"banana",emoji:"🍌"},{name:"망고",id:"mango",emoji:"🥭"},{name:"초콜릿",id:"choco",emoji:"🍫"},{name:"얼음",id:"ice",emoji:"🧊"},{name:"시럽",id:"syrup",emoji:"🍯"},{name:"홍차",id:"tea",emoji:"🫖"},{name:"휘핑크림",id:"cream",emoji:"🍦"},{name:"펄",id:"boba",emoji:"⚫"},{name:"말차",id:"matcha",emoji:"🍵"},{name:"레몬",id:"lemon",emoji:"🍋"},{name:"청포도",id:"grape",emoji:"🍇"},{name:"블루레몬",id:"blue",emoji:"🔵"}];
+const drinks=[
+{name:"딸기 스무디",type:"smoothie",desc:"상큼한 딸기 스무디를 만들어 주세요!",needs:["strawberry","milk","ice"],face:"🐰",price:45},
+{name:"망고 스무디",type:"smoothie",desc:"달콤한 망고 스무디 부탁해요!",needs:["mango","milk","ice"],face:"🐼",price:45},
+{name:"바나나 스무디",type:"smoothie",desc:"바나나 스무디 한 잔 주세요!",needs:["banana","milk","ice"],face:"🐵",price:45},
+{name:"카페라떼",type:"latte",desc:"부드러운 카페라떼 주세요!",needs:["coffee","milk"],face:"🐱",price:40},
+{name:"바닐라라떼",type:"latte",desc:"달콤한 바닐라라떼 부탁해요!",needs:["coffee","milk","syrup"],face:"🦊",price:50},
+{name:"초코라떼",type:"latte",desc:"초콜릿 듬뿍 초코라떼 주세요!",needs:["coffee","milk","choco"],face:"🐻",price:50},
+{name:"밀크티 버블티",type:"bubble",desc:"쫀득한 펄이 들어간 밀크티!",needs:["tea","milk","boba"],face:"🐨",price:55},
+{name:"딸기 버블티",type:"bubble",desc:"딸기와 펄이 들어간 버블티!",needs:["strawberry","milk","boba"],face:"🐹",price:60},
+{name:"타로 버블티",type:"bubble",desc:"달콤한 타로 버블티 주세요!",needs:["milk","boba","syrup"],face:"🐯",price:60},
+{name:"아이스 아메리카노",type:"coffee",desc:"시원한 아이스 아메리카노!",needs:["coffee","ice"],face:"🐶",price:40},
+{name:"핫 아메리카노",type:"coffee",desc:"따뜻한 커피 한 잔 주세요!",needs:["coffee"],face:"🐸",price:35},
+{name:"카푸치노",type:"coffee",desc:"거품 가득 카푸치노 부탁해요!",needs:["coffee","milk","cream"],face:"🐼",price:55},
+{name:"말차라떼",type:"latte",desc:"초록초록 말차라떼 주세요!",needs:["matcha","milk"],face:"🐢",price:50},
+{name:"초코 바나나",type:"smoothie",desc:"초콜릿 바나나 음료 주세요!",needs:["banana","milk","choco","ice"],face:"🐒",price:55},
+{name:"딸기 초코 크림",type:"special",desc:"딸기와 초코, 크림을 넣은 특별 음료!",needs:["strawberry","milk","choco","cream"],face:"🦄",price:70},
+{name:"망고 버블 스무디",type:"special",desc:"망고와 펄이 가득한 특별 음료!",needs:["mango","milk","ice","boba"],face:"🐨",price:75},
+{name:"말차 초코 라떼",type:"special",desc:"말차와 초콜릿, 우유를 넣어 주세요!",needs:["matcha","milk","choco"],face:"🐸",price:65},
+{name:"딸기 에이드",type:"ade",desc:"상큼한 딸기 에이드 한 잔 주세요!",needs:["strawberry","lemon","ice"],face:"🐥",price:40},
+{name:"레몬 에이드",type:"ade",desc:"시원한 레몬 에이드 부탁해요!",needs:["lemon","ice"],face:"🐤",price:40},
+{name:"청포도 에이드",type:"ade",desc:"달콤한 청포도 에이드 주세요!",needs:["grape","lemon","ice"],face:"🐹",price:42},
+{name:"블루레몬 에이드",type:"ade",desc:"파란 블루레몬 에이드 부탁해요!",needs:["blue","lemon","ice"],face:"🐳",price:45},
+{name:"초코 쉐이크",type:"shake",desc:"달콤한 초코 쉐이크 주세요!",needs:["choco","milk","ice"],face:"🐻",price:50},
+{name:"딸기 쉐이크",type:"shake",desc:"딸기 가득 쉐이크 부탁해요!",needs:["strawberry","milk","ice"],face:"🐰",price:50},
+{name:"바나나 쉐이크",type:"shake",desc:"바나나 쉐이크 한 잔 주세요!",needs:["banana","milk","ice"],face:"🐵",price:50}];
+const buyableDrinks=[
+{name:"딸기 에이드",emoji:"🍓🥤",price:20},{name:"레몬 에이드",emoji:"🍋🥤",price:20},{name:"청포도 에이드",emoji:"🍇🥤",price:22},{name:"블루레몬 에이드",emoji:"🔵🍋🥤",price:25},{name:"딸기 스무디",emoji:"🍓🥤",price:25},{name:"망고 스무디",emoji:"🥭🥤",price:25},{name:"바나나 스무디",emoji:"🍌🥤",price:25},{name:"초코 쉐이크",emoji:"🍫🥤",price:30},{name:"딸기 쉐이크",emoji:"🍓🥤",price:30},{name:"바나나 쉐이크",emoji:"🍌🥤",price:30},{name:"밀크티 버블티",emoji:"🧋",price:35},{name:"타로 버블티",emoji:"💜🧋",price:35},{name:"딸기 버블티",emoji:"🍓🧋",price:35},{name:"카페라떼",emoji:"☕🥛",price:25},{name:"초코라떼",emoji:"🍫🥛",price:27},{name:"말차라떼",emoji:"🍵🥛",price:30}];
+const backgrounds=[{id:"pink",name:"핑크 카페",emoji:"🌸",price:0,className:"bg-pink"},{id:"sky",name:"하늘 카페",emoji:"☁️",price:80,className:"bg-sky"},{id:"forest",name:"숲속 카페",emoji:"🌳",price:100,className:"bg-forest"},{id:"sea",name:"바다 카페",emoji:"🌊",price:120,className:"bg-sea"},{id:"star",name:"별빛 카페",emoji:"🌟",price:150,className:"bg-star"}];
+const decorations=[{id:"flower",name:"꽃 화분",emoji:"🌷",price:30},{id:"teddy",name:"곰인형",emoji:"🧸",price:40},{id:"cake",name:"케이크",emoji:"🍰",price:45},{id:"rainbow",name:"무지개",emoji:"🌈",price:50},{id:"cat",name:"고양이",emoji:"🐱",price:55},{id:"light",name:"반짝 조명",emoji:"💡",price:60},{id:"fountain",name:"분수",emoji:"⛲",price:80},{id:"gold",name:"황금 간판",emoji:"✨",price:100}];
+
+function update(){ $("coins").textContent=coins;$("stars").textContent=stars;$("level").textContent=level;$("level2").textContent=level;$("served").textContent=served;$("shopCoins").textContent=coins;const ranks=["🌱 초보 바리스타","⭐ 인기 카페","🔥 전문 바리스타","👑 카페 마스터","💎 전설의 카페"];$("rank").textContent=ranks[Math.min(level-1,4)];const next=level*3;$("levelBar").style.width=Math.min(100,success/next*100)+"%";$("levelCount").textContent=level>=5?"최고 레벨! 특별 주문에 도전하세요!":"다음 레벨까지 성공 "+Math.max(0,next-success)+"번"; }
+function showPage(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));if(b)b.classList.add("active");if(id==="shop")loadDrinkShop();if(id==="decorate")renderDecorations();}
+function renderIngredients(){$("ingredients").innerHTML="";ingredients.forEach((x,i)=>{const c=document.createElement("button");c.className="ingredient";c.draggable=true;c.ondragstart=e=>e.dataTransfer.setData("ingredient",i);c.onclick=()=>addIngredient(i);c.innerHTML=`<span class="emoji">${x.emoji}</span>${x.name}<small>끌어오기 / 클릭</small>`;$("ingredients").appendChild(c)})}
+function allowDrop(e){e.preventDefault()}function dropIngredient(e){e.preventDefault();const i=e.dataTransfer.getData("ingredient");if(i!=="")addIngredient(Number(i))}
+function addIngredient(i){if(mixed){$("message").textContent="이미 완성된 음료예요! 🥤 비우고 다시 만들어 보세요.";return}const x=ingredients[i];if(added.includes(x.id)){ $("message").textContent="같은 재료는 한 번만 넣을 수 있어요!";return}if(added.length>=5){$("message").textContent="컵이 가득 찼어요! 🥤";return}added.push(x.id);updateCup();$("message").textContent=x.emoji+" "+x.name+"을(를) 컵에 넣었어요! ✨";}
+function updateCup(){$("added").textContent=added.length?"넣은 재료: "+added.map(id=>{const x=ingredients.find(i=>i.id===id);return x.emoji+" "+x.name}).join(" · "):"아직 넣은 재료가 없어요."; $("mixBtn").disabled=added.length===0||mixed;$("stirBtn").disabled=added.length===0||mixed;$("serveBtn").disabled=!mixed;if(currentOrder)$("progress").style.width=Math.min(100,added.length/currentOrder.needs.length*100)+"%";let color="#fff1d0";if(added.includes("coffee"))color="#9b603c";if(added.includes("strawberry"))color="#f58a9d";if(added.includes("mango"))color="#ffbd58";if(added.includes("banana"))color="#f6d85e";if(added.includes("matcha"))color="#91c66a";if(added.includes("boba"))color="#b8a2c7";if(added.includes("lemon"))color="#ffe37a";if(added.includes("blue"))color="#82cfff";$("liquid").style.height=Math.min(95,added.length*19)+"%";$("liquid").style.background=color;$("cupLabel").textContent=added.length?"재료 "+added.length+"개":"빈 컵";}
+function clearCup(){added=[];mixed=false;madeAction="";$("cupLabel").textContent="빈 컵";$("liquid").style.height="0";$("progress").style.width="0%";$("added").textContent="아직 넣은 재료가 없어요.";$("mixBtn").disabled=true;$("stirBtn").disabled=true;$("serveBtn").disabled=true;}
+function mixDrink(){if(!added.length)return;mixed=true;madeAction="mix";$("cupLabel").textContent="🌀 완성!";$("mixBtn").disabled=true;$("stirBtn").disabled=true;$("serveBtn").disabled=false;$("message").textContent="위이이잉~ 음료가 완성됐어요! 🎉";}
+function stirDrink(){if(!added.length)return;mixed=true;madeAction="stir";$("cupLabel").textContent="🥄 완성!";$("mixBtn").disabled=true;$("stirBtn").disabled=true;$("serveBtn").disabled=false;$("message").textContent="휘휘 저어서 음료가 완성됐어요! 🎉";}
+function requiredAction(t){return ["smoothie","shake","special"].includes(t)?"mix":"stir";}
+function availableDrinks(){let max=level===1?10:level===2?14:drinks.length;const a=drinks.slice(0,max),b=drinks.filter(d=>unlockedShopDrinks.includes(d.name));return [...new Map([...a,...b].map(d=>[d.name,d])).values()];}
+function drinkIcon(t){return t==="smoothie"?"🥤":t==="latte"?"☕":t==="bubble"?"🧋":t==="coffee"?"🧊":t==="ade"?"🍋🥤":t==="shake"?"🥛🥤":"🌟";}
+function renderMenu(){$("drinkMenu").innerHTML="";availableDrinks().forEach(d=>{const i=drinks.indexOf(d),b=document.createElement("button");b.className="drink"+(d===currentOrder?" active":"");b.innerHTML=drinkIcon(d.type)+"<br>"+d.name;b.onclick=()=>chooseDrink(i);$("drinkMenu").appendChild(b)})}
+function chooseDrink(i){currentOrder=drinks[i];$("orderEmoji").textContent=drinkIcon(currentOrder.type);$("orderName").textContent=currentOrder.name;$("orderDesc").textContent=currentOrder.desc;$("customerFace").textContent=currentOrder.face;$("customerName").textContent="손님 "+(served+1)+"번";$("recipe").innerHTML=currentOrder.needs.map(id=>{const x=ingredients.find(i=>i.id===id);return `<span>${x.emoji} ${x.name}</span>`}).join("");renderMenu();clearCup();$("message").textContent="새로운 주문이 들어왔어요! 만들어 주세요 🍹";}
+function newOrder(){const a=availableDrinks(),r=a[Math.floor(Math.random()*a.length)];chooseDrink(drinks.indexOf(r));}
+function serveDrink(){if(!mixed||!currentOrder)return;const ci=currentOrder.needs.length===added.length&&currentOrder.needs.every(id=>added.includes(id)),ca=madeAction===requiredAction(currentOrder.type);if(ci&&ca){const reward=currentOrder.price+(level-1)*5;coins+=reward;stars+=2;success++;served++;const old=level;level=Math.min(5,Math.floor(success/3)+1);$("message").textContent="🎉 정답! 손님이 정말 맛있대요! 🪙 +"+reward+" 코인 ⭐ +2";if(level>old)$("message").textContent+=" 🏆 레벨 업! 새로운 주문이 등장했어요!";}else{coins+=10;served++;$("message").textContent=!ci?"앗, 재료가 주문과 달라요! 🪙 +10 코인!":"앗, 이 음료는 "+(requiredAction(currentOrder.type)==="mix"?"믹서기":"저어 만들기")+"로 만들어야 해요! 🪙 +10 코인!";}update();loadMenu();clearCup();setTimeout(newOrder,1000);}
+function loadMenu(){$("menuList").innerHTML="";drinks.forEach(d=>{const u=availableDrinks().includes(d),c=document.createElement("div");c.className="card"+(u?"":" locked");c.innerHTML=`<div class="emoji">${u?drinkIcon(d.type):"🔒"}</div><h3>${u?d.name:"잠긴 메뉴"}</h3><p>${u?d.desc:"레벨을 올려 주세요!"}</p><p class="price">🪙 ${d.price}</p>`;$("menuList").appendChild(c)})}
+function loadDrinkShop(){const s=$("drinkShop");s.innerHTML="";buyableDrinks.forEach((d,i)=>{const c=document.createElement("div");c.className="card";const bought=unlockedShopDrinks.includes(d.name);c.innerHTML=`<div class="emoji">${d.emoji}</div><h3>${d.name}</h3><p class="price">🪙 ${d.price} 코인</p><button onclick="buyDrink(${i})">${bought?"🛒 다시 구매":"🛒 구매하기"}</button>${bought?'<div class="shop-count">🔓 손님 주문 해금!</div>':""}`;s.appendChild(c)});renderMyDrinks();}
+function buyDrink(i){const d=buyableDrinks[i];if(coins<d.price){$("message").textContent="😢 코인이 부족해요! 손님에게 음료를 더 팔아보세요!";return}coins-=d.price;myDrinks.push(d);if(!unlockedShopDrinks.includes(d.name))unlockedShopDrinks.push(d.name);update();renderMyDrinks();loadMenu();$("message").textContent="🎉 "+d.name+" 구매 완료! 이제 손님이 이 음료를 주문할 수도 있어요! 🥤";}
+function renderMyDrinks(){const b=$("myDrinks");if(!myDrinks.length){b.innerHTML='<div class="message">아직 산 음료가 없어요! 🥤</div>';return}b.innerHTML="";myDrinks.forEach(d=>{const c=document.createElement("div");c.className="card owned";c.innerHTML=`<div class="emoji">${d.emoji}</div><h3>${d.name}</h3><div class="shop-count">✅ 구매 완료 · 🔓 주문 해금</div>`;b.appendChild(c)})}
+function renderDecorations(){const bs=$("backgroundShop");bs.innerHTML="";backgrounds.forEach(bg=>{const o=ownedBackground.includes(bg.id),c=document.createElement("div");c.className="card"+(o?" owned":"");c.innerHTML=`<div class="emoji">${bg.emoji}</div><h3>${bg.name}</h3><p>${bg.price===0?"무료":"🪙 "+bg.price}</p><button onclick="buyBackground('${bg.id}')">${o?"🎨 사용하기":"🛒 구매"}</button>`;bs.appendChild(c)});const ds=$("decorShop");ds.innerHTML="";decorations.forEach(d=>{const o=ownedDecor.includes(d.id),c=document.createElement("div");c.className="card"+(o?" owned":"");c.innerHTML=`<div class="emoji">${d.emoji}</div><h3>${d.name}</h3><p>🪙 ${d.price}</p><button onclick="buyDecor('${d.id}')">${o?"✨ 장식하기":"🛒 구매"}</button>`;ds.appendChild(c)});updateCafePreview();}
+function buyBackground(id){const bg=backgrounds.find(x=>x.id===id);if(ownedBackground.includes(id)){currentBackground=id;updateCafePreview();$("message").textContent="🎨 "+bg.name+"으로 바꿨어요!";return}if(coins<bg.price){$("message").textContent="😢 코인이 부족해요!";return}coins-=bg.price;ownedBackground.push(id);currentBackground=id;update();renderDecorations();$("message").textContent="🎉 "+bg.name+"을 구매했어요!";}
+function buyDecor(id){const d=decorations.find(x=>x.id===id);if(ownedDecor.includes(id)){if(currentDecor.includes(id)){currentDecor=currentDecor.filter(x=>x!==id);$("message").textContent=d.emoji+" "+d.name+"을 치웠어요!"}else{currentDecor.push(id);$("message").textContent=d.emoji+" "+d.name+"을 장식했어요!"}updateCafePreview();return}if(coins<d.price){$("message").textContent="😢 코인이 부족해요!";return}coins-=d.price;ownedDecor.push(id);currentDecor.push(id);update();renderDecorations();$("message").textContent="🎉 "+d.name+"을 구매했어요!";}
+function updateCafePreview(){const p=$("cafePreview"),bg=backgrounds.find(x=>x.id===currentBackground);let t="";currentDecor.forEach(id=>{const d=decorations.find(x=>x.id===id);if(d)t+=d.emoji+" "});p.innerHTML=`<div class="background-box ${bg.className}">${bg.emoji} ☕ ${t}</div>`;$("decorDisplay").textContent=t||"☕ 🌷 🧸";}
+renderIngredients();loadMenu();loadDrinkShop();renderDecorations();newOrder();update();
+</script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>버튼 클릭 게임</title>
+<style>
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #87ceeb, #b8f0c0);
+  font-family: Arial, sans-serif;
+}
+.game {
+  width: 85%;
+  max-width: 400px;
+  padding: 30px 20px;
+  text-align: center;
+  background: white;
+  border-radius: 24px;
+}
+#score {
+  font-size: 60px;
+  font-weight: bold;
+  margin: 20px;
+}
+#clickButton {
+  width: 250px;
+  height: 140px;
+  border: none;
+  border-radius: 25px;
+  background: #4caf50;
+  color: white;
+  font-size: 36px;
+  font-weight: bold;
+}
+#resetButton {
+  margin-top: 25px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  background: #555;
+  color: white;
+  font-size: 18px;
+}
+</style>
+</head>
+
+<body>
+<div class="game">
+  <h1>🖱️ 버튼 클릭 게임</h1>
+  <div id="score">0</div>
+  <button id="clickButton">클릭!</button>
+  <br>
+  <button id="resetButton">점수 초기화</button>
+</div>
+
+<script>
+let score = 0;
+
+document.getElementById("clickButton").onclick = function() {
+  score++;
+  document.getElementById("score").textContent = score;
+};
+
+document.getElementById("resetButton").onclick = function() {
+  score = 0;
+  document.getElementById("score").textContent = score;
+};
+</script>
+</body>
+</html>

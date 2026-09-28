@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🧠 기억력 카드 게임</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  margin:0;font-family:Arial,"Noto Sans KR",sans-serif;
+  background:linear-gradient(135deg,#c8f4ff,#fff0a8);
+  min-height:100vh;color:#333;text-align:center
+}
+header{padding:18px 10px 8px}
+h1{margin:0;color:#6655d9;font-size:clamp(28px,7vw,42px);text-shadow:2px 2px #fff}
+.subtitle{font-weight:bold;margin:6px 0 12px}
+.stats{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.stat{background:#fff;border:3px solid #8f83e8;border-radius:17px;padding:8px 13px;font-weight:bold}
+.game{width:min(900px,94vw);margin:auto}
+.panel{background:#ffffffee;border:4px solid #8f83e8;border-radius:24px;padding:14px;box-shadow:0 5px 0 #6254b833}
+.levelbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.levelname{font-size:22px;font-weight:bold;color:#5d4bd2}
+.hearts{font-size:25px;letter-spacing:3px}
+.progress{height:13px;background:#e5e5ef;border-radius:20px;overflow:hidden;margin:10px 0}
+.progress>div{height:100%;width:0;background:#7767dc;border-radius:20px;transition:width .3s}
+#message{min-height:27px;font-weight:bold;color:#5b4bc3;margin:6px}
+.board{
+  display:grid;gap:10px;justify-content:center;align-items:stretch;
+  margin:10px auto 5px
+}
+.card{
+  aspect-ratio:1/1;border:0;border-radius:15px;background:transparent;
+  padding:0;cursor:pointer;min-width:0;position:relative
+}
+.card-inner{
+  position:relative;width:100%;height:100%;
+  display:block
+}
+.face{
+  position:absolute;inset:0;border-radius:15px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(24px,7vw,48px);
+  border:3px solid #6d61d9;
+  transition:transform .3s, opacity .3s;
+}
+.back{
+  background:linear-gradient(135deg,#8175ed,#5b4ec7);
+  color:#fff;transform:rotateY(0deg);opacity:1
+}
+.back:after{content:"★";font-size:clamp(24px,6vw,40px)}
+.front{
+  background:#fffdf0;transform:rotateY(180deg);opacity:0
+}
+.card.flipped .back,.card.matched .back{transform:rotateY(180deg);opacity:0}
+.card.flipped .front,.card.matched .front{transform:rotateY(0deg);opacity:1}
+.card.matched .front{background:#dfffe8;border-color:#48bb78}
+.card:disabled{cursor:default}
+.controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+button.control{
+  border:0;border-radius:15px;padding:11px 17px;font-size:16px;
+  font-weight:bold;color:#fff;background:#ff7b54;box-shadow:0 3px 0 #d95b39;cursor:pointer
+}
+button.control:active{transform:translateY(2px)}
+.info{margin-top:10px;font-size:14px;color:#666}
+.win{
+  background:#fff4b5;border:3px solid #ffc542;border-radius:18px;
+  padding:10px;margin-top:10px;font-weight:bold
+}
+@media(max-width:500px){
+  .panel{padding:10px}
+  .board{gap:7px}
+  .face{border-width:2px;border-radius:11px}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧠 기억력 카드 게임!</h1>
+  <div class="subtitle">같은 그림 두 장을 찾아보세요! 틀려도 ❤️ 하트는 줄지 않아요!</div>
+  <div class="stats">
+    <div class="stat">🏆 단계 <span id="level">1</span> / 10</div>
+    <div class="stat">🔎 시도 <span id="moves">0</span>회</div>
+    <div class="stat">❤️ 하트 <span id="hearts">5</span></div>
+  </div>
+</header>
+
+<main class="game">
+<section class="panel">
+  <div class="levelbar">
+    <div class="levelname" id="levelTitle">1단계 · 카드 4장</div>
+    <div class="hearts" aria-label="하트 5개">❤️❤️❤️❤️❤️</div>
+  </div>
+  <div class="progress"><div id="progress"></div></div>
+  <div id="message" aria-live="polite">카드를 눌러 같은 그림을 찾아보세요! 😊</div>
+  <div id="board" class="board"></div>
+  <div class="controls">
+    <button class="control" id="restart">🔄 현재 단계 다시 시작</button>
+    <button class="control" id="next" style="display:none">➡️ 다음 단계</button>
+  </div>
+  <div class="info">💡 힌트: 틀려도 괜찮아요! 다시 도전하면 됩니다.</div>
+  <div id="win" class="win" style="display:none"></div>
+</section>
+</main>
+
+<script>
+const root=document.body;
+const board=document.getElementById("board");
+const levelEl=document.getElementById("level");
+const movesEl=document.getElementById("moves");
+const levelTitle=document.getElementById("levelTitle");
+const message=document.getElementById("message");
+const progress=document.getElementById("progress");
+const nextBtn=document.getElementById("next");
+const restartBtn=document.getElementById("restart");
+const win=document.getElementById("win");
+
+const symbols=["🍎","🍉","🍓","🍋","🍊","🍇","🍒","🥝","🍌","🍍","🥕","🌽","🍔","🍕","🍩","🍪","⚽","🎈","🚗","🚀","🐶","🐱","🐰","🐼","🦊","🐸","🌈","⭐","🌙","☀️"];
+let level=1,moves=0,flipped=[],matched=0,locked=false,timer=null;
+const totalLevels=10;
+
+function pairsForLevel(lvl){
+  // 1단계 2쌍(4장), 이후 한 단계마다 1쌍씩 증가: 4~22장
+  return lvl+1;
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+function setBoardColumns(count){
+  let cols;
+  if(count<=4) cols=2;
+  else if(count<=6) cols=3;
+  else if(count<=12) cols=4;
+  else if(count<=16) cols=4;
+  else if(count<=20) cols=5;
+  else cols=6;
+  board.style.gridTemplateColumns=`repeat(${cols}, minmax(0,1fr))`;
+  board.style.width=`min(100%, ${cols*115}px)`;
+  board.style.maxWidth="100%";
+}
+function updateStats(){
+  levelEl.textContent=level;
+  movesEl.textContent=moves;
+  levelTitle.textContent=`${level}단계 · 카드 ${pairsForLevel(level)*2}장`;
+  progress.style.width=(matched/pairsForLevel(level)*100)+"%";
+}
+function makeCard(symbol,index){
+  const btn=document.createElement("button");
+  btn.type="button";btn.className="card";
+  btn.setAttribute("aria-label","기억력 카드");
+  btn.innerHTML=`<span class="card-inner"><span class="face back"></span><span class="face front">${symbol}</span></span>`;
+  btn.dataset.symbol=symbol;btn.dataset.index=index;
+  btn.addEventListener("click",()=>flip(btn));
+  return btn;
+}
+function startLevel(){
+  clearTimeout(timer);locked=false;flipped=[];matched=0;moves=0;
+  nextBtn.style.display="none";win.style.display="none";
+  const pairCount=pairsForLevel(level);
+  const chosen=symbols.slice(0,pairCount);
+  const cards=shuffle([...chosen,...chosen]);
+  board.innerHTML="";
+  setBoardColumns(cards.length);
+  cards.forEach((s,i)=>board.appendChild(makeCard(s,i)));
+  message.textContent=`${level}단계 시작! 같은 그림을 찾아보세요 😊`;
+  updateStats();
+}
+function flip(card){
+  if(locked||card.classList.contains("flipped")||card.classList.contains("matched"))return;
+  if(flipped.length>=2)return;
+  card.classList.add("flipped");
+  flipped.push(card);
+  if(flipped.length===2){
+    moves++;
+    updateStats();
+    const [a,b]=flipped;
+    if(a.dataset.symbol===b.dataset.symbol){
+      a.classList.add("matched");b.classList.add("matched");
+      matched++;
+      flipped=[];
+      updateStats();
+      message.textContent="🎉 짝을 찾았어요!";
+      if(matched===pairsForLevel(level)) finishLevel();
+    }else{
+      // 실패해도 하트 감소 없음
+      locked=true;
+      message.textContent="😄 괜찮아요! 기억해 두고 다시 찾아보세요.";
+      timer=setTimeout(()=>{
+        a.classList.remove("flipped");b.classList.remove("flipped");
+        flipped=[];locked=false;
+      },700);
+    }
+  }
+}
+function finishLevel(){
+  locked=true;
+  progress.style.width="100%";
+  if(level<totalLevels){
+    message.textContent=`🎉 ${level}단계 클리어!`;
+    win.style.display="block";
+    win.textContent=`⭐ 잘했어요! 다음 단계에서는 카드가 더 늘어나요.`;
+    nextBtn.style.display="inline-block";
+  }else{
+    message.textContent="🏆 모든 단계 클리어!";
+    win.style.display="block";
+    win.textContent="🎊 축하해요! 10단계까지 모두 성공했어요!";
+  }
+}
+nextBtn.addEventListener("click",()=>{
+  if(level<totalLevels){level++;startLevel();}
+});
+restartBtn.addEventListener("click",startLevel);
+
+// 하트는 게임 내내 5개로 유지됩니다.
+document.getElementById("hearts").textContent="5";
+startLevel();
+</script>
+</body>
+</html>

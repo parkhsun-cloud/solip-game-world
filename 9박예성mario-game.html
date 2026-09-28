@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>점프 어드벤처</title>
+<style>
+  :root{
+    --sky1:#7ec8ff; --sky2:#bfe8ff; --ground:#8b5a2b; --grass:#4caf50;
+    --panel:#222; --accent:#ffcc00;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;background:#111;color:#fff;font-family:'Trebuchet MS',sans-serif;}
+  #wrap{display:flex;flex-direction:column;align-items:center;padding:10px;padding-top:calc(10px + env(safe-area-inset-top,0px));}
+  h1{font-size:1.3rem;margin:6px 0;}
+  #stage{position:relative;width:100%;max-width:800px;}
+  canvas{width:100%;height:auto;display:block;background:linear-gradient(var(--sky1),var(--sky2));border-radius:10px;border:3px solid #333;touch-action:none;}
+  #menu, #overlay, #shop{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,0.72);border-radius:10px;text-align:center;padding:14px;overflow-y:auto;}
+  button{background:var(--accent);color:#222;border:none;padding:10px 18px;border-radius:8px;font-size:1rem;font-weight:bold;cursor:pointer;margin:4px;}
+  button.alt{background:#eee;}
+  button.danger{background:#ff5252;color:#fff;}
+  #hud{display:flex;justify-content:space-between;width:100%;max-width:800px;margin-top:6px;font-size:0.9rem;}
+  #ctrls{display:flex;justify-content:space-between;width:100%;max-width:800px;margin-top:10px;}
+  .padbtn{width:64px;height:64px;border-radius:50%;background:#444;color:#fff;font-size:1.4rem;border:2px solid #666;user-select:none;touch-action:none;}
+  #msg{font-size:0.85rem;opacity:0.8;margin-top:6px;text-align:center;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>🍄 점프 어드벤처</h1>
+  <div id="stage">
+    <canvas id="game" width="800" height="400"></canvas>
+    <div id="menu">
+      <div style="font-size:1.1rem;font-weight:bold;">난이도를 선택하세요</div>
+      <button onclick="startGame('easy')">쉬움</button>
+      <button onclick="startGame('hard')">어려움</button>
+      <button onclick="startGame('extreme')" class="danger">매우어려움</button>
+      <button onclick="startChallenge()" style="background:#7e57c2;color:#fff;">챌린지 스테이지 (150코인)</button>
+      <button class="alt" onclick="openShop()">상점 (보유 코인: <span id="lobbyCoin">0</span>)</button>
+    </div>
+    <div id="overlay" style="display:none;">
+      <div id="overlayText" style="font-size:1.3rem;font-weight:bold;"></div>
+      <button onclick="backToMenu()">난이도 다시 선택</button>
+    </div>
+    <div id="shop" style="display:none;">
+      <div style="font-size:1.2rem;font-weight:bold;">상점</div>
+      <div style="font-size:0.9rem;">보유 코인: <span id="shopCoin">0</span></div>
+      <div style="background:#1113;padding:10px;border-radius:8px;width:90%;max-width:320px;">
+        <div>⚡ 속도 강화 (Lv.<span id="speedLv">0</span>, +<span id="speedBonus">0</span>)</div>
+        <div style="font-size:0.85rem;margin:4px 0;">다음 강화 비용: <span id="speedCost">10</span> 코인</div>
+        <button onclick="buyUpgrade('speed')">속도 강화 구매</button>
+      </div>
+      <div style="background:#1113;padding:10px;border-radius:8px;width:90%;max-width:320px;">
+        <div>⤴ 점프 강화 (Lv.<span id="jumpLv">0</span>, +<span id="jumpBonus">0</span>)</div>
+        <div style="font-size:0.85rem;margin:4px 0;">다음 강화 비용: <span id="jumpCost">10</span> 코인</div>
+        <button onclick="buyUpgrade('jump')">점프 강화 구매</button>
+      </div>
+      <div style="background:#1113;padding:10px;border-radius:8px;width:90%;max-width:320px;">
+        <div>☂ 우산 (비를 완전히 막아줌)</div>
+        <div style="font-size:0.85rem;margin:4px 0;" id="umbrellaStatus">가격: 1000 코인</div>
+        <button id="umbrellaBtn" onclick="buyUmbrella()">우산 구매</button>
+      </div>
+      <button class="alt" onclick="closeShop()">로비로 돌아가기</button>
+    </div>
+    <button id="exitBtn" onclick="backToMenu()" style="display:none;position:absolute;top:8px;right:8px;padding:6px 10px;font-size:0.8rem;">🚪 나가기</button>
+  </div>
+  <div id="hud">
+    <span id="diffLabel"></span>
+    <span id="coinLabel">코인: 0</span>
+  </div>
+  <div id="ctrls">
+    <div>
+      <button class="padbtn" id="btnLeft">◀</button>
+      <button class="padbtn" id="btnRight">▶</button>
+    </div>
+    <button class="padbtn" id="btnJump">⤴</button>
+  </div>
+  <div id="msg">방향키/버튼으로 이동, 스페이스바나 ⤴ 버튼으로 점프. 깃발까지 가면 클리어!</div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GRAVITY = 0.6, JUMP_BASE = -12, SPEED_BASE = 4;
+// 최대 점프 가능 수평거리 ≈ MOVE_SPEED * (2*|JUMP_V|/GRAVITY) ≈ 160px (기본값 기준)
+
+let keys = {left:false, right:false, jump:false};
+let diff = 'easy';
+let camX = 0;
+let totalCoins = 0;
+let speedLevel = 0, jumpLevel = 0;
+let hasUmbrella = false;
+let umbrellaEquipped = false;
+let running = false;
+let raindrops = [];
+let frame = 0;
+
+function MOVE_SPEED(){ return diff==='challenge' ? SPEED_BASE : SPEED_BASE + speedLevel; }
+function JUMP_V(){ return diff==='challenge' ? JUMP_BASE : JUMP_BASE - jumpLevel; }
+function upgradeCost(level){ return 10 + level*8; }
+const UMBRELLA_COST = 1000;
+const CHALLENGE_COST = 150;
+
+function loadProgress(){
+  try{
+    const stored = localStorage.getItem('jumpadv_coins');
+    totalCoins = stored !== null ? parseInt(stored) : 0;
+    speedLevel = parseInt(localStorage.getItem('jumpadv_speedLv')) || 0;
+    jumpLevel = parseInt(localStorage.getItem('jumpadv_jumpLv')) || 0;
+    hasUmbrella = localStorage.getItem('jumpadv_umbrella') === '1';
+    umbrellaEquipped = localStorage.getItem('jumpadv_umbrellaEquipped') === '1';
+  }catch(e){ totalCoins=0; speedLevel=0; jumpLevel=0; hasUmbrella=false; umbrellaEquipped=false; }
+  totalCoins = 0;
+  saveProgress();
+}
+function saveProgress(){
+  try{
+    localStorage.setItem('jumpadv_coins', totalCoins);
+    localStorage.setItem('jumpadv_speedLv', speedLevel);
+    localStorage.setItem('jumpadv_jumpLv', jumpLevel);
+    localStorage.setItem('jumpadv_umbrella', hasUmbrella ? '1' : '0');
+    localStorage.setItem('jumpadv_umbrellaEquipped', umbrellaEquipped ? '1' : '0');
+  }catch(e){}
+}
+
+function buyUmbrella(){
+  if(hasUmbrella) return;
+  if(totalCoins < UMBRELLA_COST){ alert('코인이 부족합니다! (필요: ' + UMBRELLA_COST + ')'); return; }
+  totalCoins -= UMBRELLA_COST;
+  hasUmbrella = true;
+  umbrellaEquipped = true;
+  saveProgress();
+  refreshShop();
+  document.getElementById('lobbyCoin').textContent = totalCoins;
+}
+function toggleUmbrella(){
+  if(!hasUmbrella) return;
+  umbrellaEquipped = !umbrellaEquipped;
+  saveProgress();
+  refreshShop();
+}
+
+function startChallenge(){
+  if(totalCoins < CHALLENGE_COST){ alert('코인이 부족합니다! (필요: ' + CHALLENGE_COST + ')'); return; }
+  totalCoins -= CHALLENGE_COST;
+  saveProgress();
+  startGame('challenge');
+}
+
+function openShop(){
+  document.getElementById('menu').style.display='none';
+  document.getElementById('shop').style.display='flex';
+  refreshShop();
+}
+function closeShop(){
+  document.getElementById('shop').style.display='none';
+  document.getElementById('menu').style.display='flex';
+  document.getElementById('lobbyCoin').textContent = totalCoins;
+}
+function refreshShop(){
+  document.getElementById('shopCoin').textContent = totalCoins;
+  document.getElementById('speedLv').textContent = speedLevel;
+  document.getElementById('speedBonus').textContent = speedLevel;
+  document.getElementById('speedCost').textContent = upgradeCost(speedLevel);
+  document.getElementById('jumpLv').textContent = jumpLevel;
+  document.getElementById('jumpBonus').textContent = jumpLevel;
+  document.getElementById('jumpCost').textContent = upgradeCost(jumpLevel);
+  const umbrellaBtn = document.getElementById('umbrellaBtn');
+  umbrellaBtn.disabled = false;
+  if(hasUmbrella){
+    document.getElementById('umbrellaStatus').textContent = umbrellaEquipped ? '장착중 ☂' : '미장착';
+    umbrellaBtn.textContent = umbrellaEquipped ? '장착 해제' : '장착';
+    umbrellaBtn.onclick = toggleUmbrella;
+  } else {
+    document.getElementById('umbrellaStatus').textContent = '가격: ' + UMBRELLA_COST + ' 코인';
+    umbrellaBtn.textContent = '우산 구매';
+    umbrellaBtn.onclick = buyUmbrella;
+  }
+}
+function buyUpgrade(kind){
+  const level = kind==='speed' ? speedLevel : jumpLevel;
+  const cost = upgradeCost(level);
+  if(totalCoins < cost){ alert('코인이 부족합니다! (필요: ' + cost + ')'); return; }
+  totalCoins -= cost;
+  if(kind==='speed') speedLevel++; else jumpLevel++;
+  saveProgress();
+  refreshShop();
+}
+
+function makeLevel(mode){
+  // 바닥 + 발판들. 갭(gap)은 x 구간이 빈 곳.
+  let platforms = [
+    {x:0, y:360, w:500, h:40},
+    {x:600, y:360, w:300, h:40},
+    {x:1000, y:300, w:150, h:20},
+    {x:1250, y:360, w:250, h:40},
+    {x:1600, y:280, w:120, h:20},
+    {x:1820, y:360, w:400, h:40},
+  ];
+  let coinsArr = [
+    {x:250,y:320},{x:650,y:320},{x:1030,y:260},{x:1300,y:320},{x:1900,y:320}
+  ];
+  let flagX = 2150;
+  let shelters = []; // 어려움 모드용 지붕(비 피할 곳)
+  let rainOn = false, rainSpeed = 0, rainDensity = 0;
+
+  if(mode === 'hard'){
+    rainOn = true; rainSpeed = 5; rainDensity = 0.06;
+    shelters = [
+      {x:600, y:300, w:300, h:15},
+      {x:1250, y:300, w:250, h:15},
+      {x:1820, y:300, w:400, h:15},
+    ];
+  }
+  if(mode === 'extreme'){
+    rainOn = true; rainSpeed = 11; rainDensity = 0.55;
+    shelters = [
+      {x:600, y:300, w:300, h:15},
+      {x:1250, y:300, w:250, h:15},
+      {x:1820, y:300, w:400, h:15},
+    ];
+    // 점프맵 자체는 깰 수 있게 구성 (간격은 모두 도달 가능한 범위)
+    platforms = [
+      {x:0, y:360, w:500, h:40},
+      {x:600, y:360, w:300, h:40},
+      {x:1000, y:300, w:150, h:20},
+      {x:1250, y:360, w:250, h:40},
+      {x:1600, y:280, w:120, h:20},
+      {x:1820, y:360, w:400, h:40},
+    ];
+    coinsArr = [
+      {x:250,y:320},{x:650,y:320},{x:1030,y:260},{x:1300,y:320},{x:1900,y:320}
+    ];
+    flagX = 2150;
+  }
+  if(mode === 'challenge'){
+    rainOn = false;
+    // 비는 없지만 좁은 발판과 최대 점프거리에 가까운 간격이 계속 이어지는 장거리 고난도 구간 (모두 도달 가능)
+    platforms = [
+      {x:0,    y:360, w:260, h:40},
+      {x:410,  y:330, w:55,  h:20},
+      {x:555,  y:290, w:50,  h:20},
+      {x:700,  y:250, w:50,  h:20},
+      {x:845,  y:210, w:45,  h:20},
+      {x:985,  y:250, w:45,  h:20},
+      {x:1125, y:290, w:45,  h:20},
+      {x:1265, y:330, w:45,  h:20},
+      {x:1410, y:290, w:45,  h:20},
+      {x:1555, y:250, w:45,  h:20},
+      {x:1700, y:210, w:40,  h:20},
+      {x:1845, y:250, w:40,  h:20},
+      {x:1990, y:290, w:40,  h:20},
+      {x:2135, y:330, w:40,  h:20},
+      {x:2280, y:290, w:40,  h:20},
+      {x:2425, y:250, w:40,  h:20},
+      {x:2570, y:290, w:40,  h:20},
+      {x:2715, y:330, w:40,  h:20},
+      {x:2860, y:360, w:400, h:40},
+    ];
+    coinsArr = [
+      {x:435,y:300},{x:725,y:220},{x:1010,y:220},{x:1435,y:260},
+      {x:1725,y:180},{x:2015,y:260},{x:2305,y:260},{x:2595,y:260}
+    ];
+    flagX = 3050;
+  }
+  return {platforms, coinsArr, flagX, shelters, rainOn, rainSpeed, rainDensity, worldW: flagX+300};
+}
+
+let level;
+let player;
+let deaths = 0;
+
+function resetPlayer(){
+  player = {x:40, y:300, w:28, h:34, vx:0, vy:0, onGround:false, dead:false};
+}
+
+function startGame(mode){
+  diff = mode;
+  level = makeLevel(mode);
+  resetPlayer();
+  deaths = 0; raindrops = []; frame = 0;
+  document.getElementById('menu').style.display='none';
+  document.getElementById('shop').style.display='none';
+  document.getElementById('overlay').style.display='none';
+  document.getElementById('exitBtn').style.display='block';
+  document.getElementById('diffLabel').textContent =
+    mode==='easy' ? '난이도: 쉬움' : mode==='hard' ? '난이도: 어려움' : mode==='extreme' ? '난이도: 매우어려움' : '난이도: 챌린지 스테이지';
+  updateCoinLabel();
+  running = true;
+  requestAnimationFrame(loop);
+}
+
+function backToMenu(){
+  running = false;
+  document.getElementById('exitBtn').style.display='none';
+  document.getElementById('shop').style.display='none';
+  document.getElementById('menu').style.display='flex';
+  document.getElementById('overlay').style.display='none';
+  document.getElementById('lobbyCoin').textContent = totalCoins;
+}
+
+function updateCoinLabel(){
+  document.getElementById('coinLabel').textContent = '보유 코인: ' + totalCoins;
+}
+
+function showOverlay(text){
+  running = false;
+  document.getElementById('overlay').style.display='flex';
+  document.getElementById('overlayText').textContent = text;
+}
+
+function rectsOverlap(a,b){
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+
+function isUnderShelter(px, py){
+  for(const s of level.shelters){
+    if(px > s.x && px < s.x+s.w) return true;
+  }
+  return false;
+}
+
+function update(){
+  frame++;
+  if(!running) return;
+
+  // 이동
+  player.vx = 0;
+  if(keys.left) player.vx = -MOVE_SPEED();
+  if(keys.right) player.vx = MOVE_SPEED();
+  if(keys.jump && player.onGround){
+    player.vy = JUMP_V();
+    player.onGround = false;
+  }
+
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+  player.x = Math.max(0, Math.min(player.x, level.worldW-player.w));
+
+  player.onGround = false;
+  for(const p of level.platforms){
+    if(player.x+player.w > p.x && player.x < p.x+p.w){
+      if(player.y+player.h > p.y && player.y+player.h-player.vy <= p.y+2 && player.vy >= 0){
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
+    }
+  }
+
+  // 낙사
+  if(player.y > H+100){
+    die('아래로 떨어졌습니다!');
+    return;
+  }
+
+  // 코인
+  level.coinsArr = level.coinsArr.filter(c=>{
+    if(Math.abs((c.x)-(player.x+player.w/2)) < 22 && Math.abs(c.y-(player.y+player.h/2)) < 22){
+      totalCoins++; saveProgress(); updateCoinLabel(); return false;
+    }
+    return true;
+  });
+
+  // 비
+  if(level.rainOn){
+    if(Math.random() < level.rainDensity){
+      raindrops.push({x: camX + Math.random()*(W+100)-50, y:-10, len: 14+Math.random()*10});
+    }
+    for(const r of raindrops){ r.y += level.rainSpeed; }
+    raindrops = raindrops.filter(r=>r.y < H+400);
+
+    for(const r of raindrops){
+      const dropRect = {x:r.x-2, y:r.y, w:4, h:r.len};
+      const playerRect = {x:player.x, y:player.y, w:player.w, h:player.h};
+      if(!umbrellaEquipped && !isUnderShelter(player.x+player.w/2, player.y) && rectsOverlap(dropRect, playerRect)){
+        die('비를 맞아 쓰러졌습니다! ☔');
+        return;
+      }
+    }
+  }
+
+  // 클리어
+  if(player.x+player.w/2 > level.flagX){
+    document.getElementById('exitBtn').style.display='none';
+    showOverlay('🎉 클리어! 보유 코인 ' + totalCoins + '개 (실패 ' + deaths + '회)');
+    return;
+  }
+
+  // 카메라
+  camX = Math.max(0, Math.min(player.x - W/2, level.worldW - W));
+}
+
+function die(reason){
+  deaths++;
+  resetPlayer();
+  camX = Math.max(0, player.x - W/2);
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // 배경 구름
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  for(let i=0;i<4;i++){
+    const cx = ((i*260 - camX*0.3) % (W+200)) - 100;
+    ctx.beginPath();
+    ctx.ellipse(cx,60+ i%2*20,40,20,0,0,7);
+    ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(-camX,0);
+
+  // 발판
+  for(const p of level.platforms){
+    ctx.fillStyle = '#8b5a2b';
+    ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(p.x,p.y,p.w,8);
+  }
+  // 지붕(쉼터)
+  for(const s of level.shelters){
+    ctx.fillStyle = '#555';
+    ctx.fillRect(s.x,s.y,s.w,s.h);
+    ctx.fillStyle = '#777';
+    ctx.fillRect(s.x,s.y,s.w,4);
+  }
+  // 코인
+  for(const c of level.coinsArr){
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.arc(c.x,c.y,9,0,7);
+    ctx.fill();
+    ctx.strokeStyle='#c99400'; ctx.lineWidth=2; ctx.stroke();
+  }
+  // 깃발
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(level.flagX, 200, 5, 160);
+  ctx.fillStyle = '#ff3b30';
+  ctx.beginPath();
+  ctx.moveTo(level.flagX+5,200);
+  ctx.lineTo(level.flagX+45,215);
+  ctx.lineTo(level.flagX+5,230);
+  ctx.fill();
+
+  // 비
+  if(level.rainOn){
+    ctx.strokeStyle = 'rgba(20,50,140,0.95)';
+    ctx.lineWidth = 2.5;
+    for(const r of raindrops){
+      ctx.beginPath();
+      ctx.moveTo(r.x, r.y);
+      ctx.lineTo(r.x-3, r.y+r.len);
+      ctx.stroke();
+    }
+  }
+
+  // 플레이어
+  ctx.fillStyle = '#e53935';
+  ctx.fillRect(player.x, player.y, player.w, player.h);
+  ctx.fillStyle = '#3949ab';
+  ctx.fillRect(player.x, player.y+18, player.w, 16);
+  ctx.fillStyle = '#ffe0b2';
+  ctx.fillRect(player.x+5, player.y+2, player.w-10, 12);
+
+  ctx.restore();
+}
+
+function loop(){
+  update();
+  draw();
+  if(running) requestAnimationFrame(loop);
+  else draw();
+}
+
+// 키보드 입력
+window.addEventListener('keydown', e=>{
+  if(e.key === 'ArrowLeft' || e.key==='a') keys.left = true;
+  if(e.key === 'ArrowRight' || e.key==='d') keys.right = true;
+  if(e.key === ' ' || e.key === 'ArrowUp' || e.key==='w'){ keys.jump = true; e.preventDefault(); }
+});
+window.addEventListener('keyup', e=>{
+  if(e.key === 'ArrowLeft' || e.key==='a') keys.left = false;
+  if(e.key === 'ArrowRight' || e.key==='d') keys.right = false;
+  if(e.key === ' ' || e.key === 'ArrowUp' || e.key==='w') keys.jump = false;
+});
+
+// 터치/클릭 버튼
+function bindBtn(id, prop){
+  const el = document.getElementById(id);
+  const on = ev=>{keys[prop]=true; ev.preventDefault();};
+  const off = ev=>{keys[prop]=false; ev.preventDefault();};
+  el.addEventListener('touchstart', on, {passive:false});
+  el.addEventListener('touchend', off, {passive:false});
+  el.addEventListener('touchcancel', off, {passive:false});
+  el.addEventListener('mousedown', on);
+  el.addEventListener('mouseup', off);
+  el.addEventListener('mouseleave', off);
+}
+bindBtn('btnLeft','left');
+bindBtn('btnRight','right');
+bindBtn('btnJump','jump');
+
+loadProgress();
+document.getElementById('lobbyCoin').textContent = totalCoins;
+updateCoinLabel();
+draw();
+</script>
+</body>
+</html>

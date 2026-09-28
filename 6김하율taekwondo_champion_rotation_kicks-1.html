@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>태권도 챔피언 - 회전발차기 추가판</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101828;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;color:#fff}
+#tk-game4{max-width:980px;margin:0 auto;padding:14px}
+.card{background:#172236;border:1px solid #31415e;border-radius:18px;padding:16px;box-shadow:0 12px 30px #0005}
+h1,h2{margin:4px 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+label{font-weight:700}
+input,select,button{font:inherit}
+input,select{padding:10px;border-radius:10px;border:1px solid #52627f;background:#0e1728;color:#fff}
+button{border:0;border-radius:12px;padding:10px 14px;background:#2b78ff;color:white;font-weight:800;cursor:pointer}
+button:hover{filter:brightness(1.12)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.choice{background:#263650}
+.choice.active{background:#14a36b}
+#setup .section{margin:12px 0}
+#game{display:none}
+.top{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{background:#0e1728;border-radius:14px;padding:12px}
+.hpbar{height:18px;background:#303a4e;border-radius:99px;overflow:hidden;margin-top:6px}
+.hp{height:100%;width:100%;background:#32c878;transition:width .25s}
+.arena{height:390px;margin-top:12px;border-radius:18px;position:relative;overflow:hidden;
+background:
+linear-gradient(#ffffff10,#ffffff10),
+repeating-linear-gradient(90deg,#d9a36b 0 48px,#c88f57 48px 96px);
+border:8px solid #6b452c}
+.arena:before{content:"";position:absolute;inset:0;background:linear-gradient(to bottom,#8cc8ff55 0 18%,transparent 18% 100%);pointer-events:none}
+.arena.exam{background:linear-gradient(#d9e7f755,#d9e7f755),repeating-linear-gradient(90deg,#e9e9e9 0 48px,#cfcfcf 48px 96px)}
+.sign{position:absolute;top:15px;left:50%;transform:translateX(-50%);padding:8px 18px;background:#fff;color:#172236;border-radius:10px;font-weight:900;display:none;z-index:5}
+.exam .sign{display:block}
+.person{position:absolute;width:110px;height:220px;bottom:22px;transition:transform .65s ease,filter .2s}
+#p1{left:13%}
+#p2{right:13%}
+.person .head{position:absolute;left:34px;top:4px;width:43px;height:43px;border-radius:50%;background:#d79a72;border:3px solid #8c5a43;z-index:3}
+.person .hair{position:absolute;left:32px;top:0;width:47px;height:22px;border-radius:25px 25px 8px 8px;background:#171717;z-index:4}
+.person .body{position:absolute;left:23px;top:47px;width:64px;height:82px;background:#f7f7f7;border:3px solid #bfc4cb;border-radius:8px;z-index:2}
+.person .lapel1,.person .lapel2{position:absolute;top:50px;width:5px;height:68px;background:#d0d4da;z-index:4;transform-origin:top}
+.person .lapel1{left:50px;transform:rotate(24deg)}
+.person .lapel2{left:55px;transform:rotate(-24deg)}
+.person .belt{position:absolute;left:20px;top:110px;width:70px;height:10px;background:#111;border-radius:4px;z-index:5}
+#p2 .belt{background:#e7b72f}
+.person .arm{position:absolute;top:57px;width:18px;height:72px;background:#f7f7f7;border:3px solid #bfc4cb;border-radius:10px;z-index:1}
+.person .arm.left{left:8px;transform:rotate(12deg)}
+.person .arm.right{right:8px;transform:rotate(-12deg)}
+.person .leg{position:absolute;top:123px;width:23px;height:76px;background:#f7f7f7;border:3px solid #bfc4cb;border-radius:10px;z-index:1}
+.person .leg.left{left:20px}.person .leg.right{right:20px}
+.person .foot{position:absolute;top:188px;width:36px;height:18px;background:#f7f7f7;border:3px solid #bfc4cb;border-radius:12px;z-index:1}
+.person .foot.left{left:7px}.person .foot.right{right:7px}
+.person.attackNormal{animation:kickMove .48s ease-in-out}
+.person.attack360{animation:dodgeLeft .72s ease-in-out}
+.person.attack540{animation:dodgeRight .86s ease-in-out}
+.person.attackNormal .leg.right,.person.attackNormal .leg.left{animation:legKick .48s ease-in-out}
+@keyframes kickMove{0%{transform:translateX(0)}35%{transform:translateX(30px) translateY(-5px) scale(1.04)}65%{transform:translateX(42px) translateY(-2px) scale(1.04)}100%{transform:translateX(0)}}
+@keyframes legKick{0%{transform:translateY(0) rotate(0)}35%{transform:translateY(-8px) rotate(-35deg)}65%{transform:translateY(-3px) rotate(28deg)}100%{transform:translateY(0) rotate(0)}}
+@keyframes dodgeLeft{0%{transform:translateX(0)}35%{transform:translateX(-38px) rotate(-5deg)}70%{transform:translateX(-50px) rotate(-3deg)}100%{transform:translateX(0) rotate(0)}}
+@keyframes dodgeRight{0%{transform:translateX(0)}35%{transform:translateX(45px) rotate(5deg)}70%{transform:translateX(58px) rotate(3deg)}100%{transform:translateX(0) rotate(0)}}
+.knockedDown{transform:translate(25px,48px) rotate(88deg)!important;transform-origin:bottom center;opacity:.9}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.controls button{background:#31527f}
+.controls button.spin{background:#7b4bd1}
+#certArea{margin-top:12px}
+#certArea button{background:#a05bd9}
+.hidden{display:none!important}
+#log{height:125px;overflow:auto;background:#0a1120;border-radius:12px;padding:10px;margin-top:12px;font-size:14px;line-height:1.5}
+.small{opacity:.8;font-size:13px}
+.beltName{font-size:22px;font-weight:900}
+@media(max-width:700px){.top{grid-template-columns:1fr}.controls{grid-template-columns:repeat(2,1fr)}.arena{height:350px}.person{transform-origin:bottom center}#p1{left:6%}#p2{right:6%}}
+</style>
+</head>
+<body>
+<div id="tk-game4">
+<div id="setup" class="card">
+<h1>🥋 태권도 챔피언</h1>
+<div class="section"><label>닉네임 </label><input id="nick" maxlength="12" placeholder="닉네임"></div>
+<div class="section"><label>성별 </label>
+<select id="gender"><option>남성</option><option>여성</option></select></div>
+<div class="section"><b>플레이 모드</b><div class="row">
+<button class="choice active" data-mode="solo">솔로 플레이</button>
+<button class="choice" data-mode="pvp">PVP</button>
+</div></div>
+<div class="section"><b>단계</b><div class="row">
+<button class="choice active" data-stage="1">초급</button>
+<button class="choice" data-stage="2">중급</button>
+<button class="choice" data-stage="3">고급</button>
+</div></div>
+<button id="start">게임 시작!</button>
+</div>
+
+<div id="game">
+<div class="card">
+<div class="top">
+<div class="panel"><b id="playerLabel">플레이어</b><div>레벨 <span id="level">1</span> · <span class="beltName" id="belt">흰띠</span></div>
+<div>점수: <span id="score">0</span> · <span id="stageName">초급</span></div><div class="hpbar"><div id="hp" class="hp"></div></div></div>
+<div class="panel"><b>상대</b><div id="enemyStatus">대기 중</div><div class="hpbar"><div id="ehp" class="hp"></div></div></div>
+</div>
+<div id="arena" class="arena">
+<div class="sign">🥋 자격증 심사장</div>
+<div id="p1" class="person"><div class="head"></div><div class="hair"></div><div class="body"></div><div class="lapel1"></div><div class="lapel2"></div><div class="belt"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div><div class="foot left"></div><div class="foot right"></div></div>
+<div id="p2" class="person"><div class="head"></div><div class="hair"></div><div class="body"></div><div class="lapel1"></div><div class="lapel2"></div><div class="belt"></div><div class="arm left"></div><div class="arm right"></div><div class="leg left"></div><div class="leg right"></div><div class="foot left"></div><div class="foot right"></div></div>
+</div>
+<div class="controls">
+<button data-move="앞차기">앞차기</button><button data-move="돌려차기">돌려차기</button>
+<button data-move="옆차기">옆차기</button><button data-move="지르기">지르기</button>
+<button data-move="막기">막기</button><button data-move="회전차기">회전차기</button>
+<button data-move="뒤차기">뒤차기</button><button data-move="기본 자세">기본 자세</button>
+<button class="spin" data-move="360도 회전발차기">🌀 360도 회전발차기</button>
+<button class="spin" data-move="540도 회전발차기">🌀 540도 회전발차기</button>
+</div>
+<div id="certArea" class="panel">
+<b>🏅 승급·자격증</b><div class="row" style="margin-top:8px">
+<button id="judge">심사하기</button><button id="master">사범 자격증 취득</button><button id="director">관장 자격증 취득</button>
+</div><div class="small">사범: 검은띠 + 100점 이상 / 관장: 사범 자격증 + 200점 이상</div>
+</div>
+<div id="log"></div>
+<div class="row" style="margin-top:10px"><button id="reset">처음으로</button></div>
+</div>
+</div>
+</div>
+
+<script>
+const belts=['흰띠','노란띠','주황띠','초록띠','보라띠','파랑띠','밤띠','빨간띠','품띠','검은띠'];
+const stages=['초급','중급','고급'];
+const power={'앞차기':8,'돌려차기':10,'옆차기':9,'지르기':7,'막기':0,'회전차기':13,'뒤차기':11,'기본 자세':6,'360도 회전발차기':15,'540도 회전발차기':18};
+let mode='solo',stage=1,level=1,belt=0,score=0,hp=100,ehp=100,block=false,locked=false,master=false,director=false,exam=false,timer=null;
+
+const $=id=>document.getElementById(id);
+function log(t){$('log').innerHTML='<div>'+t+'</div>'+$('log').innerHTML}
+function render(){
+ $('level').textContent=level;$('belt').textContent=belts[belt];$('score').textContent=score;
+ $('stageName').textContent=stages[stage-1];$('hp').style.width=hp+'%';$('ehp').style.width=ehp+'%';
+ $('enemyStatus').textContent=mode==='pvp'?(ehp>0?'전투 중':'쓰러짐'):'연습 상대';
+ $('certArea').classList.toggle('hidden',mode==='pvp');
+ $('p2').classList.toggle('hidden',false);
+}
+function animateMove(name){
+ const p=$('p1');
+ p.classList.remove('attackNormal','attack360','attack540');
+ void p.offsetWidth;
+ if(name==='360도 회전발차기'){p.classList.add('attack360');setTimeout(()=>p.classList.remove('attack360'),800)}
+ else if(name==='540도 회전발차기'){p.classList.add('attack540');setTimeout(()=>p.classList.remove('attack540'),950)}
+ else if(['앞차기','돌려차기','옆차기','회전차기','뒤차기'].includes(name)){p.classList.add('attackNormal');setTimeout(()=>p.classList.remove('attackNormal'),520)}
+}
+function enemyAttack(){
+ if(mode!=='pvp'||locked)return;
+ let d=Math.max(2,Math.floor(7+stage*2-Math.random()*4));
+ if(block){d=Math.ceil(d/2);block=false;log('🛡️ 막기로 피해를 줄였습니다.')}
+ hp=Math.max(0,hp-d);render();log('상대의 공격! -'+d);
+}
+function move(name){
+ if(locked)return;
+ animateMove(name);
+ if(name==='막기'){block=true;score+=2;log('🛡️ 막기 준비!');render();return}
+ const d=power[name]+stage*2;
+ score+=d;level=Math.min(10,1+Math.floor(score/35));
+ log('🥋 '+name+'! +'+d+'점');
+ if(mode==='pvp'){
+   ehp=Math.max(0,ehp-d);render();
+   if(ehp<=0){
+     locked=true;$('p2').classList.remove('attack360','attack540');$('p2').classList.add('knockedDown');
+     log('🏆 승리! 상대가 쓰러졌습니다!');render();return;
+   }
+   setTimeout(enemyAttack,500);
+ }
+ render();
+}
+function startGame(){
+ $('setup').style.display='none';$('game').style.display='block';
+ hp=100;ehp=100;score=0;level=1;belt=0;locked=false;master=false;director=false;exam=false;block=false;
+ $('p2').classList.remove('knockedDown','hidden');$('arena').classList.remove('exam');
+ $('log').innerHTML='';
+ log('게임 시작! '+(mode==='pvp'?'상대와 대결합니다.':'점수를 모아 승급하세요.'));
+ render();
+}
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-mode]').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode});
+document.querySelectorAll('[data-stage]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-stage]').forEach(x=>x.classList.remove('active'));b.classList.add('active');stage=+b.dataset.stage});
+$('start').onclick=startGame;
+document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>move(b.dataset.move));
+$('judge').onclick=()=>{
+ if(mode==='pvp'||exam||locked)return;
+ const need=stage*30+level*3;
+ if(score>=need&&belt<belts.length-1){belt++;score=0;level=Math.min(10,level+1);log('🎉 승급 성공! '+belts[belt]);}
+ else if(belt===belts.length-1)log('🏆 검은띠입니다! 자격증 심사에 도전하세요.');
+ else log('📋 아직 심사 점수가 부족합니다. 필요 점수: '+need);
+ render();
+};
+function certification(type){
+ if(mode==='pvp'||exam||locked)return;
+ if(type==='master' && belt>=9 && score>=100){
+   exam=true;$('arena').classList.add('exam');log('🥋 사범 자격증 심사를 시작합니다! 7초 동안 심사합니다.');
+   clearTimeout(timer);timer=setTimeout(()=>{master=true;exam=false;$('arena').classList.remove('exam');score=0;log('🏅 사범 자격증 취득!');render()},7000);
+ }else if(type==='director' && master && score>=200){
+   exam=true;$('arena').classList.add('exam');log('🥋 관장 자격증 심사를 시작합니다! 7초 동안 심사합니다.');
+   clearTimeout(timer);timer=setTimeout(()=>{director=true;exam=false;$('arena').classList.remove('exam');score=0;log('🏆 관장 자격증 취득!');render()},7000);
+ }else{
+   log(type==='master'?'사범 조건: 검은띠 + 100점 이상':'관장 조건: 사범 자격증 + 200점 이상');
+ }
+ render();
+}
+$('master').onclick=()=>certification('master');
+$('director').onclick=()=>certification('director');
+$('reset').onclick=()=>{clearTimeout(timer);$('game').style.display='none';$('setup').style.display='block'};
+render();
+</script>
+</body>
+</html>

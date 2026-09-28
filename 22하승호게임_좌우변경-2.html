@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Undertale Stage System - Joystick Box Reset</title>
+    <style>
+        *{box-sizing:border-box;user-select:none;-webkit-user-select:none;touch-action:none}
+        body{background:#000;color:#fff;font-family:'Courier New',Courier,monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:10px}
+        #game-container{width:100%;max-width:820px;display:flex;flex-direction:column;align-items:center}
+        #difficulty-select{width:100%;border:4px solid #fff;background:#050505;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:22px 20px}
+        .diff-title{font-size:20px;font-weight:bold;color:#ff0;text-align:center}.diff-btn-group{display:flex;flex-direction:column;gap:8px;width:85%}
+        .diff-btn{background:#111;border:2px solid #fff;color:#fff;padding:8px;font-weight:bold;font-size:14px;cursor:pointer;text-align:center;border-radius:4px;transition:.2s};touch-action:manipulation;position:relative;z-index:100;-webkit-tap-highlight-color:transparent
+        .diff-btn:hover,.diff-btn:active{background:#fff;color:#000}
+        #preview-header{width:100%;background:#222;border:2px solid #888;padding:8px 12px;margin-bottom:8px;border-radius:4px;display:none;justify-content:space-between;align-items:center;font-size:13px}
+        .preview-badge{background:#f00;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px;font-size:11px}
+        .puzzle-badge{background:#06c;color:#fff;font-weight:bold;padding:2px 6px;border-radius:3px;font-size:11px;margin-left:4px}
+        #field-wrap{width:100%;position:relative}
+        #field-canvas{width:100%;aspect-ratio:4/3;height:auto;background:#050505;border:4px solid #fff;display:none}
+        #battle-canvas{width:100%;max-width:400px;aspect-ratio:5/3;height:auto;background:#000;border:5px solid #fff;display:none;margin:0 auto}
+        #virtual-joystick{position:absolute;left:14px;bottom:14px;width:160px;display:none;grid-template-columns:repeat(3,1fr);gap:4px;z-index:30;opacity:.88}
+        .joy-btn{background:rgba(20,20,20,.75);border:2px solid #fff;color:#fff;font-weight:bold;font-size:15px;padding:10px 0;text-align:center;border-radius:5px;cursor:pointer}.joy-btn:active{background:#f00}
+        .joy-reset{background:rgba(180,30,30,.8);font-size:10px;line-height:1.2;display:flex;align-items:center;justify-content:center}
+        #battle-ui{display:none;width:100%;flex-direction:column;align-items:center}#enemy-area{height:100px;display:flex;flex-direction:column;justify-content:center;align-items:center;font-weight:bold}
+        #enemy-sprite{font-size:45px;animation:bounce .3s infinite alternate ease-in-out}@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-8px)}}
+        #enemy-hp-container{width:180px;height:12px;background:#444;margin-top:5px;border:2px solid #fff}#enemy-hp-fill{width:100%;height:100%;background:#0f0;transition:width .2s}
+        #battle-box-wrap{width:100%;max-width:400px;position:relative;margin:0 auto}
+        #message-box{position:absolute;inset:0;padding:12px;font-size:14px;line-height:1.4;color:#fff;pointer-events:none;z-index:5}
+        #attack-ui{position:absolute;top:50%;left:5%;width:90%;height:50px;transform:translateY(-50%);border:3px solid #fff;background:#111;display:none;z-index:6}#attack-target{width:10px;height:100%;background:#ff0;position:absolute;left:50%;transform:translateX(-50%)}#attack-bar{width:8px;height:100%;background:#fff;position:absolute;left:0}
+        #gameover-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.9);flex-direction:column;justify-content:center;align-items:center;gap:14px;text-align:center;padding:20px;z-index:20}
+        #gameover-overlay .go-title{color:#f00;font-size:20px;font-weight:bold}
+        .go-btn{border:2px solid #fff;color:#fff;padding:8px 20px;font-weight:bold;cursor:pointer;background:#111;z-index:25}.go-btn:hover{background:#fff;color:#000}
+        #status-bar{width:100%;max-width:500px;margin-top:10px;font-size:15px;font-weight:bold;display:flex;align-items:center;justify-content:space-around}.hp-bar-bg{width:80px;height:16px;background:#f00;display:inline-block}#hp-bar-fill{width:100%;height:100%;background:#ff0;transition:width .2s}
+        #menu-buttons{width:100%;max-width:500px;display:flex;gap:5px;margin-top:10px;z-index:15}.btn{flex:1;border:2px solid #e76e00;color:#e76e00;background:#000;padding:8px 0;font-size:14px;font-weight:bold;text-align:center;cursor:pointer}.btn:hover,.btn:active{background:#e76e00;color:#000}
+        #instructions{margin-top:10px;color:#aaa;font-size:12px;text-align:center}
+        #puzzle-status{margin-top:6px;color:#6cf;font-size:12px;text-align:center}
+    .blue-btn{background:#06c;color:#fff;border:2px solid #fff;border-radius:10px;padding:10px 14px;font-weight:bold;font-size:16px}.jump-btn{min-width:90px}\n#battle-row{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:620px;margin:0 auto}\n#blue-controls{display:none;align-items:center;justify-content:space-between;gap:8px;z-index:30;flex:0 0 auto}.blue-move-group{display:flex;gap:8px;flex-direction:column}\n#battle-box-wrap{position:relative;flex:0 0 400px}\n</style>
+</head>
+<body>
+<div id="game-container">
+    <div id="difficulty-select">
+        <div class="diff-title">SELECT START DIFFICULTY</div>
+        <div class="diff-btn-group">
+            <div class="diff-btn" data-diff="EASY" style="border-color:#0f0;color:#0f0">EASY (쉬움)</div>
+            <div class="diff-btn" data-diff="NORMAL" style="border-color:#ff0;color:#ff0">NORMAL (보통)</div>
+            <div class="diff-btn" data-diff="HARD" style="border-color:#fa0;color:#fa0">HARD (어려움)</div>
+            <div class="diff-btn" data-diff="VERY_HARD" style="border-color:#f00;color:#f00">VERY HARD (매우 어려움)</div>
+            <div class="diff-btn" data-diff="EXTREME" style="border-color:#f0f;color:#f0f">EXTREME (지옥불)</div>
+        </div>
+    </div>
+    <div id="mode-select" style="display:none;width:100%;border:4px solid #fff;background:#050505;flex-direction:column;justify-content:center;align-items:center;gap:12px;padding:22px 20px">
+        <div class="diff-title" style="color:#4cf">하트 모드를 선택하세요</div>
+        <div style="color:#aaa;text-align:center;font-size:12px">보스의 공격 패턴은 두 모드에서 동일합니다.</div>
+        <div class="diff-btn-group">
+            <div class="diff-btn mode-btn" data-mode="normal">❤️ 일반 하트 모드<br><small>자유 이동</small></div>
+            <div class="diff-btn mode-btn" data-mode="blue">🔵 파란 하트 모드<br><small>중력 적용 · 좌우 이동 + 점프</small></div>
+        </div>
+    </div>
+    <div id="preview-header"><span id="stage-display" style="font-weight:bold;color:#ff0">STAGE 1</span><span><span class="preview-badge" id="mode-badge">FIELD MODE</span><span class="puzzle-badge">PUZZLE</span></span></div>
+    <div id="field-wrap">
+        <canvas id="field-canvas" width="800" height="600"></canvas>
+        <div id="virtual-joystick">
+            <div></div><div class="joy-btn" id="btn-up">▲</div><div></div>
+            <div class="joy-btn" id="btn-left">◀</div><div class="joy-btn" id="btn-down">▼</div><div class="joy-btn" id="btn-right">▶</div>
+            <div class="joy-btn joy-reset" id="btn-reset">RESET</div><div></div><div></div>
+        </div>
+    </div>
+    <div id="battle-ui">
+        <div id="enemy-area"><div id="enemy-sprite">👑</div><div id="enemy-name">KING GOBLIN</div><div id="enemy-hp-container"><div id="enemy-hp-fill"></div></div></div>
+        <div id="battle-row">
+            <div id="blue-controls" style="display:none">
+                <div class="blue-move-group"><button class="blue-btn" data-key="ArrowRight">▶</button><button class="blue-btn" data-key="ArrowLeft">◀</button></div>
+            </div>
+            <div id="battle-box-wrap">
+                <canvas id="battle-canvas" width="400" height="240"></canvas>
+                <div id="message-box">* 보스가 당신을 기습했다!</div>
+                <div id="attack-ui"><div id="attack-target"></div><div id="attack-bar"></div></div>
+                <div id="gameover-overlay"><div class="go-title">DETERMINATION...</div><div id="gameover-text">패배했습니다.</div><div class="go-btn" id="btn-restart">처음부터 다시하기</div></div>
+            </div>
+            <button class="blue-btn jump-btn" id="blue-jump-btn" data-key="ArrowUp" style="display:none">▲ JUMP</button>
+        </div>
+        <div id="status-bar"><span>CHARA</span><span id="player-lv">LV 1</span><span>HP</span><div class="hp-bar-bg"><div id="hp-bar-fill"></div></div><span id="hp-text">20 / 20</span></div>
+        <div id="menu-buttons"><div class="btn" id="btn-fight">FIGHT</div><div class="btn" id="btn-act">ACT</div><div class="btn" id="btn-item">ITEM</div><div class="btn" id="btn-mercy">MERCY</div></div>
+    </div>
+</div>
+<div id="instructions">🗺️ 난이도를 선택해 게임을 시작하세요!</div>
+<div id="puzzle-status"></div>
+
+<style>
+#admin-server{margin:18px auto 8px;width:min(94%,520px);padding:12px;border:1px solid #555;border-radius:10px;background:#080808;color:#aaa;text-align:center}
+#admin-server input{width:150px;padding:9px;margin:7px 4px;background:#111;color:#fff;border:1px solid #777;border-radius:6px;text-align:center;font-size:16px}
+#admin-server button{padding:9px 14px;background:#171717;color:#fff;border:1px solid #888;border-radius:6px;font-weight:bold}
+#admin-panel{display:none;margin-top:10px;padding:10px;border:1px solid #2f8;border-radius:8px;color:#2f8}
+#admin-status{font-size:13px;margin-top:6px}
+</style>
+
+<div id="admin-server">
+  <b>🔧 관리자 테스트 서버</b>
+  <div style="font-size:12px;margin-top:4px">비밀번호를 입력하면 테스트 모드에 입장합니다.</div>
+  <input id="admin-password" type="password" inputmode="numeric" maxlength="4" placeholder="비밀번호">
+  <button id="admin-login">테스트 서버 입장</button>
+  <div id="admin-panel">
+    <b>✓ 테스트 서버 접속 완료</b><br>
+    체력 무한 · 게임오버 방지<br>🗡️ 멸망검 · 테스트 전용
+    <div id="admin-status">난이도와 하트 모드를 선택해서 테스트하세요.</div>
+  </div>
+</div>
+
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+    const fieldCanvas=document.getElementById('field-canvas'),fctx=fieldCanvas.getContext('2d');
+    const battleCanvas=document.getElementById('battle-canvas'),bctx=battleCanvas.getContext('2d');
+    const diffSelect=document.getElementById('difficulty-select'),modeSelect=document.getElementById('mode-select'),previewHeader=document.getElementById('preview-header'),battleUi=document.getElementById('battle-ui'),joystick=document.getElementById('virtual-joystick'),modeBadge=document.getElementById('mode-badge'),stageDisplay=document.getElementById('stage-display'),messageBox=document.getElementById('message-box'),attackUi=document.getElementById('attack-ui'),attackBar=document.getElementById('attack-bar'),enemyHpFill=document.getElementById('enemy-hp-fill'),hpBarFill=document.getElementById('hp-bar-fill'),hpText=document.getElementById('hp-text'),gameoverOverlay=document.getElementById('gameover-overlay'),enemySpriteEl=document.getElementById('enemy-sprite'),enemyNameEl=document.getElementById('enemy-name'),playerLvEl=document.getElementById('player-lv'),instructionsEl=document.getElementById('instructions'),puzzleStatusEl=document.getElementById('puzzle-status'),blueControls=document.getElementById('blue-controls');
+    let mode='SELECT',currentStage=1,heartMode='normal',adminTestMode=false,hasGodSword=false;
+    const DIFFICULTIES={EASY:{label:'쉬움',playerMaxHp:30,bulletDamage:2,spawnInterval:200,bulletSpeedMult:.8,attackSpeed:6,enemyHpMult:.8},NORMAL:{label:'보통',playerMaxHp:20,bulletDamage:4,spawnInterval:140,bulletSpeedMult:1,attackSpeed:9,enemyHpMult:1},HARD:{label:'어려움',playerMaxHp:15,bulletDamage:6,spawnInterval:90,bulletSpeedMult:1.3,attackSpeed:13,enemyHpMult:1.3},VERY_HARD:{label:'매우 어려움',playerMaxHp:12,bulletDamage:8,spawnInterval:70,bulletSpeedMult:1.6,attackSpeed:16,enemyHpMult:1.6},EXTREME:{label:'지옥불',playerMaxHp:10,bulletDamage:10,spawnInterval:50,bulletSpeedMult:1.9,attackSpeed:20,enemyHpMult:2}};
+    let baseDiff=DIFFICULTIES.NORMAL,activeDiff={},difficultyKey='NORMAL',bossSequence=['goblin','wizard','skeleton','golem','reaper'],selectedBoss=null,gameState='MENU';
+    let playerHp=20,maxPlayerHp=20,enemyHp=100,maxEnemyHp=100;
+    let playerPos={x:200,y:120,r:7},bullets=[],bulletTimer=null,dodgeTimer=null,attackAnimId=null,attackBarPos=0,attackSpeed=9,currentPattern=-1;
+    const playerSpeed=3;
+    function chooseDifficulty(key){
+        if(!DIFFICULTIES[key]) return;
+        difficultyKey=key;
+        baseDiff=DIFFICULTIES[key];
+        diffSelect.style.display='none';
+        modeSelect.style.display='flex';
+        instructionsEl.textContent='❤️ 하트 모드를 선택하세요.';
+    }
+    document.querySelectorAll('#difficulty-select .diff-btn').forEach(btn=>{
+        const key=btn.getAttribute('data-diff');
+        let selected=false;
+        const select=ev=>{
+            ev.preventDefault();
+            ev.stopPropagation();
+            if(selected) return;
+            selected=true;
+            chooseDifficulty(key);
+            setTimeout(()=>selected=false,300);
+        };
+        btn.addEventListener('click',select);
+        btn.addEventListener('pointerup',select,{passive:false});
+        btn.addEventListener('touchend',select,{passive:false});
+    });
+    document.querySelectorAll('.mode-btn').forEach(btn=>btn.addEventListener('click',e=>{heartMode=e.currentTarget.getAttribute('data-mode');modeSelect.style.display='none';setupStage(1)}));
+    const adminPassword=document.getElementById('admin-password'),adminLogin=document.getElementById('admin-login'),adminPanel=document.getElementById('admin-panel'),adminStatus=document.getElementById('admin-status');
+    function enterAdminServer(){
+        if(adminPassword.value==='0109'){
+            adminTestMode=true;
+            adminPanel.style.display='block';
+            adminPanel.style.color='#2f8';
+            adminStatus.textContent='테스트 서버 활성화: 체력 ∞ · 🗡️ 멸망검 지급'; hasGodSword=true;
+            adminPassword.value='';
+            adminPassword.disabled=true;
+            adminLogin.disabled=true;
+        }else{
+            adminPanel.style.display='block';
+            adminPanel.style.color='#f66';
+            adminStatus.textContent='비밀번호가 올바르지 않습니다.';
+        }
+    }
+    adminLogin.addEventListener('click',enterAdminServer);
+    adminPassword.addEventListener('keydown',e=>{if(e.key==='Enter')enterAdminServer();});
+
+    document.getElementById('btn-fight').addEventListener('click',clickFight);document.getElementById('btn-act').addEventListener('click',doAct);document.getElementById('btn-item').addEventListener('click',doItem);document.getElementById('btn-mercy').addEventListener('click',doMercy);document.getElementById('btn-restart').addEventListener('click',()=>location.reload());
+    const FW=fieldCanvas.width,FH=fieldCanvas.height,fieldPlayer={x:60,y:550,size:20,speed:4};
+    const walls=[{x:0,y:0,w:FW,h:15},{x:0,y:FH-15,w:FW,h:15},{x:0,y:0,w:15,h:FH},{x:FW-15,y:0,w:15,h:FH},{x:260,y:0,w:18,h:380},{x:600,y:0,w:18,h:50},{x:600,y:200,w:18,h:FH-200}],doorObj={x:600,y:50,w:18,h:150};
+    const switchDefs=[{id:0,x:300,y:60,size:26},{id:1,x:300,y:500,size:26}],plateObj={x:436,y:150,size:34},boxStart={x:436,y:320};
+    let box={x:boxStart.x,y:boxStart.y,size:30},trapZoneX=636,doorOpen=false,bossSpawned=false,switches=[],keys={};
+    let puzzleType=1,puzzleData={},fieldTime=0;
+
+    function resetBoxPosition(){if(mode==='FIELD'){if(puzzleType===1||puzzleType===4){box.x=boxStart.x;box.y=boxStart.y}else{fieldPlayer.x=60;fieldPlayer.y=550}}}
+    window.addEventListener('keydown',e=>{keys[e.key]=true;if(e.key==='r'||e.key==='R')resetBoxPosition()});window.addEventListener('keyup',e=>keys[e.key]=false);
+    function bindJoyBtn(id,k){const b=document.getElementById(id);if(!b)return;b.addEventListener('touchstart',e=>{e.preventDefault();keys[k]=true});b.addEventListener('touchend',e=>{e.preventDefault();keys[k]=false});b.addEventListener('mousedown',()=>keys[k]=true);b.addEventListener('mouseup',()=>keys[k]=false);b.addEventListener('mouseleave',()=>keys[k]=false)}
+    bindJoyBtn('btn-up','ArrowUp');bindJoyBtn('btn-down','ArrowDown');bindJoyBtn('btn-left','ArrowLeft');bindJoyBtn('btn-right','ArrowRight');
+    document.querySelectorAll('.blue-btn').forEach(b=>{const k=b.getAttribute('data-key');const down=e=>{e.preventDefault();keys[k]=true};const up=e=>{e.preventDefault();keys[k]=false};b.addEventListener('touchstart',down,{passive:false});b.addEventListener('touchend',up,{passive:false});b.addEventListener('touchcancel',up,{passive:false});b.addEventListener('mousedown',down);b.addEventListener('mouseup',up);b.addEventListener('mouseleave',up);});
+    const resetBtnEl=document.getElementById('btn-reset');if(resetBtnEl){resetBtnEl.addEventListener('touchstart',e=>{e.preventDefault();resetBoxPosition()});resetBtnEl.addEventListener('click',e=>{e.preventDefault();resetBoxPosition()})}
+    function rectsOverlap(a,b){return !(a.x+(a.w||a.size)<b.x||a.x>b.x+(b.w||b.size)||a.y+(a.h||a.size)<b.y||a.y>b.y+(b.h||b.size))}
+    function centerDist(a,b){const acx=a.x+(a.w||a.size)/2,acy=a.y+(a.h||a.size)/2,bcx=b.x+(b.w||b.size)/2,bcy=b.y+(b.h||b.size)/2;return Math.hypot(acx-bcx,acy-bcy)}
+    function stagePuzzleName(n){return ['스위치 + 박스 발판','순서 기억 스위치','보석 수집','움직이는 레이저 통과','시간 제한 스위치'][n-1]||'퍼즐'}
+    function resetPuzzle(){
+        puzzleType=((currentStage-1)%5)+1; fieldTime=0; bossSpawned=false; doorOpen=false;
+        fieldPlayer.x=60;fieldPlayer.y=550;box={x:boxStart.x,y:boxStart.y,size:30};
+        switches=[]; puzzleData={};
+        if(puzzleType===1){switches=switchDefs.map(s=>({...s,pressed:false}));puzzleData.done=false;}
+        if(puzzleType===2){puzzleData.sequence=[0,1,2];puzzleData.next=0;puzzleData.pads=[{id:0,x:110,y:100,size:34},{id:1,x:390,y:90,size:34},{id:2,x:470,y:450,size:34}];}
+        if(puzzleType===3){puzzleData.gems=[{x:110,y:100,r:12,got:false},{x:420,y:90,r:12,got:false},{x:500,y:300,r:12,got:false},{x:320,y:500,r:12,got:false}];}
+        if(puzzleType===4){puzzleData.lasers=[{x:170,y:70,w:18,h:170,vy:2.2},{x:330,y:360,w:18,h:170,vy:-2.7},{x:490,y:70,w:18,h:170,vy:3.1}];puzzleData.key={x:540,y:300,size:24,got:false};}
+        if(puzzleType===5){switches=[{id:0,x:110,y:90,size:28,pressed:false},{id:1,x:260,y:500,size:28,pressed:false},{id:2,x:470,y:100,size:28,pressed:false},{id:3,x:520,y:500,size:28,pressed:false}];puzzleData.start=performance.now();puzzleData.limit=12000;puzzleData.count=0;}
+    }
+    function completePuzzle(){doorOpen=true}
+    function updatePuzzleStatus(){
+        if(puzzleType===1){const have=switches.filter(s=>s.pressed).length,onPlate=centerDist(box,plateObj)<14;puzzleStatusEl.textContent='🧩 스위치 '+have+'/2  📦 박스 발판: '+(onPlate?'O':'X')}
+        else if(puzzleType===2)puzzleStatusEl.textContent='🔢 순서 스위치: '+puzzleData.next+'/3  '+(puzzleData.next===3?'문이 열렸습니다!':'빨강 → 초록 → 파랑 순서')
+        else if(puzzleType===3){const got=puzzleData.gems.filter(g=>g.got).length;puzzleStatusEl.textContent='💎 보석 '+got+'/'+puzzleData.gems.length+'  '+(got===puzzleData.gems.length?'문이 열렸습니다!':'모든 보석을 모으세요')}
+        else if(puzzleType===4)puzzleStatusEl.textContent='⚡ 레이저를 피해서 🔑 열쇠를 얻으세요  '+(puzzleData.key.got?'→ 문 OPEN':'')
+        else {const remain=Math.max(0,puzzleData.limit-(performance.now()-puzzleData.start));puzzleStatusEl.textContent='⏱️ 스위치 '+puzzleData.count+'/4  남은 시간 '+(remain/1000).toFixed(1)+'초'}
+    }
+    function setupStage(n){clearAllTimers();currentStage=n;resetPuzzle();stageDisplay.textContent='STAGE '+n;playerLvEl.textContent='LV '+n;
+        const sm=1+(n-1)*.2,sp=1+(n-1)*.12,sf=Math.max(.4,1-(n-1)*.08);activeDiff={bulletDamage:Math.round(baseDiff.bulletDamage*sm),spawnInterval:Math.max(40,Math.round(baseDiff.spawnInterval*sf)),bulletSpeedMult:baseDiff.bulletSpeedMult*sp,attackSpeed:Math.min(22,baseDiff.attackSpeed+n-1),enemyHpMult:baseDiff.enemyHpMult*sm};
+        const bk=bossSequence[(n-1)%bossSequence.length];selectedBoss=BOSSES[bk];if(bk==='reaper'){activeDiff.bulletSpeedMult=Math.max(2.2,activeDiff.bulletSpeedMult*1.8);activeDiff.spawnInterval=Math.min(35,activeDiff.spawnInterval*.5);activeDiff.bulletDamage=Math.max(12,activeDiff.bulletDamage*1.5)}
+        if(difficultyKey==='EXTREME') activeDiff.bulletDamage=Math.min(8,Math.round(activeDiff.bulletDamage*.8));
+        maxPlayerHp=baseDiff.playerMaxHp+(n-1)*2;playerHp=maxPlayerHp;if(adminTestMode){maxPlayerHp=Infinity;playerHp=Infinity;hpText.textContent='∞ / ∞';}else{hpText.textContent=playerHp+' / '+maxPlayerHp;}hpBarFill.style.width='100%';enemyHp=Math.round(selectedBoss.baseHp*activeDiff.enemyHpMult);maxEnemyHp=enemyHp;attackSpeed=activeDiff.attackSpeed;enemyHpFill.style.width='100%';enemySpriteEl.style.opacity='1';enemySpriteEl.textContent=selectedBoss.sprite;enemyNameEl.textContent=selectedBoss.name+' (St.'+n+')';
+        modeBadge.textContent='FIELD MODE';modeBadge.style.backgroundColor='#f00';previewHeader.style.display='flex';battleUi.style.display='none';fieldCanvas.style.display='block';battleCanvas.style.display='none';joystick.style.display='grid';puzzleStatusEl.style.display='block';
+        instructionsEl.innerHTML='🧩 <b>STAGE '+n+' · '+stagePuzzleName(n)+'</b><br>'+({1:'두 스위치를 밟고 박스를 파란 발판으로 밀어 넣으세요.',2:'스위치를 1 → 2 → 3 순서대로 밟으세요. 틀리면 처음부터 다시 시작합니다.',3:'맵 곳곳의 보석 4개를 모두 모으세요.',4:'움직이는 레이저를 피하면서 열쇠를 획득하세요.',5:'12초 안에 4개의 스위치를 모두 밟으세요.'}[puzzleType]);
+        if(adminTestMode)adminStatus.textContent='테스트 중 · STAGE '+n+' · 체력 ∞ · 🗡️ 멸망검';mode='FIELD';updatePuzzleStatus();
+    }
+    function clearAllTimers(){if(bulletTimer)clearInterval(bulletTimer);if(dodgeTimer)clearTimeout(dodgeTimer);if(attackAnimId)cancelAnimationFrame(attackAnimId);bullets=[]}
+    function movePlayerAndBox(){
+        let dx=0,dy=0;if(keys.ArrowUp||keys.w)dy-=fieldPlayer.speed;if(keys.ArrowDown||keys.s)dy+=fieldPlayer.speed;if(keys.ArrowLeft||keys.a)dx-=fieldPlayer.speed;if(keys.ArrowRight||keys.d)dx+=fieldPlayer.speed;
+        if(!dx&&!dy)return;
+        let nx=fieldPlayer.x+dx,ny=fieldPlayer.y+dy,next={x:nx,y:ny,size:fieldPlayer.size};
+        const extra=(puzzleType===4?puzzleData.lasers:[]);
+        let blocked=walls.some(w=>{if(puzzleType!==1&&w.x===260&&w.w===18)return false;return rectsOverlap(next,w)});
+        if(!doorOpen&&rectsOverlap(next,doorObj))blocked=true;
+        if(puzzleType===4)for(const l of extra)if(rectsOverlap(next,l))blocked=true;
+        if(!blocked){
+            if((puzzleType===1)&&rectsOverlap(next,box)){const nb={x:box.x+dx,y:box.y+dy,size:box.size};let bc=walls.some(w=>rectsOverlap(nb,w));if(!doorOpen&&rectsOverlap(nb,doorObj))bc=true;if(!bc){box.x+=dx;box.y+=dy}else return;}
+            fieldPlayer.x=nx;fieldPlayer.y=ny;
+        }
+    }
+    function updateField(){if(mode!=='FIELD')return;movePlayerAndBox();fieldTime+=16;
+        const pr={x:fieldPlayer.x,y:fieldPlayer.y,size:fieldPlayer.size};
+        if(puzzleType===1){switches.forEach(s=>{if(rectsOverlap(pr,s))s.pressed=true});if(switches.every(s=>s.pressed)&&centerDist(box,plateObj)<14)completePuzzle()}
+        if(puzzleType===2){for(const p of puzzleData.pads){if(!p.hit&&rectsOverlap(pr,p)){p.hit=true;if(p.id===puzzleData.sequence[puzzleData.next])puzzleData.next++;else{puzzleData.next=0;puzzleData.pads.forEach(x=>x.hit=false);p.hit=false}}}if(puzzleData.next>=3)completePuzzle()}
+        if(puzzleType===3){puzzleData.gems.forEach(g=>{if(!g.got&&Math.hypot(fieldPlayer.x+10-g.x,fieldPlayer.y+10-g.y)<24)g.got=true});if(puzzleData.gems.every(g=>g.got))completePuzzle()}
+        if(puzzleType===4){puzzleData.lasers.forEach(l=>{l.y+=l.vy;if(l.y<35||l.y+l.h>FH-35)l.vy*=-1});if(puzzleData.lasers.some(l=>rectsOverlap(pr,l))){fieldPlayer.x=60;fieldPlayer.y=550}if(!puzzleData.key.got&&rectsOverlap(pr,puzzleData.key))puzzleData.key.got=true;if(puzzleData.key.got)completePuzzle()}
+        if(puzzleType===5){if(performance.now()-puzzleData.start>puzzleData.limit){puzzleData.start=performance.now();puzzleData.count=0;switches.forEach(s=>s.pressed=false);fieldPlayer.x=60;fieldPlayer.y=550}switches.forEach(s=>{if(!s.pressed&&rectsOverlap(pr,s)){s.pressed=true;puzzleData.count++}});if(puzzleData.count>=4)completePuzzle()}
+        if(!bossSpawned&&doorOpen&&fieldPlayer.x>trapZoneX){bossSpawned=true;triggerSuddenBoss()}
+        updatePuzzleStatus();
+        fctx.clearRect(0,0,FW,FH);fctx.fillStyle='#444';walls.forEach(w=>fctx.fillRect(w.x,w.y,w.w,w.h));
+        if(puzzleType===4){fctx.fillStyle='rgba(255,0,0,.45)';puzzleData.lasers.forEach(l=>fctx.fillRect(l.x,l.y,l.w,l.h))}
+        if(!doorOpen){fctx.fillStyle='#d63';fctx.fillRect(doorObj.x,doorObj.y,doorObj.w,doorObj.h)}else{fctx.strokeStyle='#0f0';fctx.strokeRect(doorObj.x,doorObj.y,doorObj.w,doorObj.h)}
+        if(puzzleType===1){fctx.fillStyle='#06c';fctx.fillRect(plateObj.x,plateObj.y,plateObj.size,plateObj.size);fctx.fillStyle='#fff';fctx.font='10px monospace';fctx.fillText('PLATE',plateObj.x-6,plateObj.y-4);switches.forEach(s=>{fctx.fillStyle=s.pressed?'#0f0':'#f00';fctx.fillRect(s.x,s.y,s.size,s.size)});fctx.fillStyle=centerDist(box,plateObj)<14?'#0f0':'#a70';fctx.fillRect(box.x,box.y,box.size,box.size);fctx.strokeStyle='#fff';fctx.strokeRect(box.x,box.y,box.size,box.size)}
+        if(puzzleType===2){puzzleData.pads.forEach(p=>{fctx.fillStyle=p.hit?'#0f0':['#f44','#4f4','#48f'][p.id];fctx.fillRect(p.x,p.y,p.size,p.size);fctx.fillStyle='#000';fctx.font='bold 14px sans-serif';fctx.fillText(String(p.id+1),p.x+11,p.y+22)})}
+        if(puzzleType===3){puzzleData.gems.forEach(g=>{if(!g.got){fctx.fillStyle='#0ff';fctx.beginPath();fctx.moveTo(g.x,g.y-g.r);fctx.lineTo(g.x+g.r,g.y);fctx.lineTo(g.x,g.y+g.r);fctx.lineTo(g.x-g.r,g.y);fctx.closePath();fctx.fill()}})}
+        if(puzzleType===4&&!puzzleData.key.got){fctx.fillStyle='#ff0';fctx.fillRect(puzzleData.key.x,puzzleData.key.y,puzzleData.key.size,puzzleData.key.size);fctx.fillStyle='#000';fctx.font='16px sans-serif';fctx.fillText('🔑',puzzleData.key.x-2,puzzleData.key.y+18)}
+        if(puzzleType===5){switches.forEach(s=>{fctx.fillStyle=s.pressed?'#0f0':'#f0f';fctx.fillRect(s.x,s.y,s.size,s.size)});}
+        if(bossSpawned){fctx.fillStyle='rgba(255,0,0,.15)';fctx.fillRect(trapZoneX,0,FW-trapZoneX,FH)}
+        fctx.fillStyle='#f00';fctx.fillRect(fieldPlayer.x,fieldPlayer.y,fieldPlayer.size,fieldPlayer.size);
+    }
+    function triggerSuddenBoss(){let c=0;const f=setInterval(()=>{fieldCanvas.style.backgroundColor=c%2===0?'#f00':'#000';if(++c>7){clearInterval(f);fieldCanvas.style.backgroundColor='#050505';startBossBattle()}},60)}
+    function startBossBattle(){mode='BATTLE';modeBadge.textContent='BOSS BATTLE';fieldCanvas.style.display='none';joystick.style.display='none';puzzleStatusEl.style.display='none';battleUi.style.display='flex';battleCanvas.style.display='block';blueControls.style.display=heartMode==='blue'?'flex':'none';const bj=document.getElementById('blue-jump-btn');if(bj)bj.style.display=heartMode==='blue'?'block':'none';gameoverOverlay.style.display='none';messageBox.style.display='block';messageBox.innerHTML='* Stage '+currentStage+' - '+selectedBoss.name+'이(가) 나타났다!<br>* '+(heartMode==='blue'?'🔵 파란 하트: 중력 모드':'❤️ 일반 하트 모드');gameState='MENU'}
+    function handleBattleTouch(e){if(gameState==='ATTACKING')stopAttackBar();else if(gameState==='DODGING'&&e.touches){const r=battleCanvas.getBoundingClientRect(),t=e.touches[0];playerPos.x=Math.max(playerPos.r,Math.min(battleCanvas.width-playerPos.r,(t.clientX-r.left)*(battleCanvas.width/r.width)));playerPos.y=Math.max(playerPos.r,Math.min(battleCanvas.height-playerPos.r,(t.clientY-r.top)*(battleCanvas.height/r.height)))}}
+    battleCanvas.addEventListener('touchstart',handleBattleTouch);battleCanvas.addEventListener('touchmove',handleBattleTouch);battleCanvas.addEventListener('mousedown',()=>{if(gameState==='ATTACKING')stopAttackBar()});
+    function clickFight(){if(gameState!=='MENU')return;messageBox.style.display='none';attackUi.style.display='block';gameState='ATTACKING';attackBarPos=0;function a(){if(gameState!=='ATTACKING')return;attackBarPos+=attackSpeed;attackBar.style.left=attackBarPos+'px';if(attackBarPos>=attackUi.clientWidth-8)executeAttack(0);else attackAnimId=requestAnimationFrame(a)}attackAnimId=requestAnimationFrame(a)}
+    function stopAttackBar(){if(gameState!=='ATTACKING')return;cancelAnimationFrame(attackAnimId);let dmg=0;if(adminTestMode&&hasGodSword){dmg=9999}else{const d=Math.abs(attackBarPos-attackUi.clientWidth/2);dmg=d<12?35+currentStage*2:d<35?20+currentStage:d<65?10:0}executeAttack(dmg)}
+    function executeAttack(damage){gameState='PROCESSING';attackUi.style.display='none';messageBox.style.display='block';if(damage>0){enemyHp=Math.max(0,enemyHp-damage);enemyHpFill.style.width=(enemyHp/maxEnemyHp*100)+'%';messageBox.innerHTML='* 치명타! <b>'+damage+'</b>의 데미지!'}else messageBox.innerHTML='* MISS! 공격을 실패했다!';if(enemyHp<=0){clearAllTimers();setTimeout(()=>{enemySpriteEl.style.opacity='0';messageBox.innerHTML='* Stage '+currentStage+' CLEAR! '+selectedBoss.name+'을(를) 격파했습니다!';gameState='WIN';setTimeout(()=>{if(currentStage>=bossSequence.length){alert('🎉 모든 보스를 격파하고 세계를 구했습니다! 게임 클리어!');location.reload()}else setupStage(currentStage+1)},1500)},800)}else setTimeout(startEnemyTurn,1000)}
+    function startEnemyTurn(){if(gameState==='GAMEOVER'||gameState==='WIN')return;gameState='DODGING';messageBox.style.display='none';playerPos.x=battleCanvas.width/2;playerPos.y=heartMode==='blue'?battleCanvas.height-playerPos.r-4:battleCanvas.height/2;playerPos.vy=0;playerPos.jumpLock=false;const ps=(selectedBoss.difficultyPatterns&&selectedBoss.difficultyPatterns[difficultyKey])||selectedBoss.patterns;currentPattern=(currentPattern+1)%ps.length;const p=ps[currentPattern];wizardAngle=0;boneWallX=0;golemAngle=0;reaperAngle=0;bulletTimer=setInterval(p.fn,activeDiff.spawnInterval*p.intervalMult);dodgeTimer=setTimeout(endEnemyTurn,8500)}
+    let wizardAngle=0;
+    function spawnWizardMagicCircle(){const cx=Math.random()*(battleCanvas.width-60)+30,cy=Math.random()*(battleCanvas.height-60)+30,speed=2.2*activeDiff.bulletSpeedMult;for(let i=0;i<8;i++){const a=wizardAngle+i*Math.PI/4;bullets.push({x:cx,y:cy,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:5,color:'#f0f'})}wizardAngle+=.2}
+    function spawnWizardWave(){const speed=2.5*activeDiff.bulletSpeedMult;if(Math.random()<.5){const x=Math.random()*battleCanvas.width;bullets.push({x,y:0,vx:Math.sin(x)*1.2,vy:speed,r:6,color:'#0ff'})}else{const y=Math.random()*battleCanvas.height;bullets.push({x:0,y,vx:speed,vy:Math.cos(y)*1.2,r:6,color:'#0ff'})}}
+    function spawnWizardStarHoming(){const sx=Math.random()<.5?15:battleCanvas.width-15,sy=Math.random()*(battleCanvas.height/2),dx=playerPos.x-sx,dy=playerPos.y-sy,len=Math.hypot(dx,dy)||1,speed=2.8*activeDiff.bulletSpeedMult;bullets.push({x:sx,y:sy,vx:dx/len*speed,vy:dy/len*speed,r:8,color:'#ff0'})}
+    function spawnGoblinLaser(){const x=Math.random()*(battleCanvas.width-20)+10;bullets.push({x,y:0,vx:0,vy:5.5*activeDiff.bulletSpeedMult,r:4,color:'#ff0'})}
+    function spawnGoblinHoming(){const x=Math.random()*battleCanvas.width,y=0,dx=playerPos.x-x,dy=playerPos.y-y,len=Math.hypot(dx,dy)||1;bullets.push({x,y,vx:dx/len*2.8*activeDiff.bulletSpeedMult,vy:dy/len*2.8*activeDiff.bulletSpeedMult,r:7,color:'#f0f'})}
+    function spawnGoblinRain(){const x=Math.random()*battleCanvas.width;bullets.push({x,y:-15,vx:0,vy:2.8*activeDiff.bulletSpeedMult,r:12,color:'#0ff'})}
+    let boneWallX=0;
+    function spawnSkeletonBoneWall(){const gapY=Math.random()*(battleCanvas.height-60)+20;for(let y=0;y<battleCanvas.height;y+=18)if(!(y>gapY-22&&y<gapY+22))bullets.push({x:-10,y,vx:2.4*activeDiff.bulletSpeedMult,vy:0,r:7,color:'#eee'})}
+    function spawnSkeletonBoneRing(){const cx=battleCanvas.width/2,cy=battleCanvas.height/2,speed=2,count=8;for(let i=0;i<count;i++){const a=i/count*Math.PI*2+boneWallX;bullets.push({x:cx+Math.cos(a)*20,y:cy+Math.sin(a)*20,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:6,color:'#0cf'})}boneWallX+=.3}
+    function spawnSkeletonCharge(){const x=Math.random()*battleCanvas.width;bullets.push({x,y:battleCanvas.height+10,vx:0,vy:-5*activeDiff.bulletSpeedMult,r:9,color:'#f66'})}
+    let golemAngle=0;
+    function spawnGolemRockShards(){const speed=2.4*activeDiff.bulletSpeedMult;for(let i=0;i<6;i++){const a=golemAngle+i*Math.PI/3;bullets.push({x:battleCanvas.width/2,y:30,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,r:8,color:'#c83'})}golemAngle+=.25}
+    function spawnGolemEarthquake(){const gapX=Math.random()*(battleCanvas.width-60)+30;for(let x=0;x<battleCanvas.width;x+=22)if(!(x>gapX-25&&x<gapX+25))bullets.push({x,y:-10,vx:0,vy:3.2*activeDiff.bulletSpeedMult,r:8,color:'#e60'})}
+    function spawnGolemRockBlast(){const rx=Math.random()*battleCanvas.width;bullets.push({x:rx,y:-10,vx:(Math.random()-.5)*1.5,vy:4.2*activeDiff.bulletSpeedMult,r:11,color:'#a52'})}
+    let reaperAngle=0;
+    function spawnReaperScytheSweep(){const cx=playerPos.x,cy=playerPos.y,count=12,speed=2.5*activeDiff.bulletSpeedMult;for(let i=0;i<count;i++){const a=reaperAngle+i/count*Math.PI*2;bullets.push({x:cx+Math.cos(a)*70,y:cy+Math.sin(a)*70,vx:-Math.cos(a)*speed,vy:-Math.sin(a)*speed,r:6,color:'#d0f'})}reaperAngle+=.4}
+    function spawnReaperSoulHoming(){const sx=Math.random()*battleCanvas.width,sy=Math.random()<.5?0:battleCanvas.height,dx=playerPos.x-sx,dy=playerPos.y-sy,len=Math.hypot(dx,dy)||1,speed=3.6*activeDiff.bulletSpeedMult;bullets.push({x:sx,y:sy,vx:dx/len*speed,vy:dy/len*speed,r:7,color:'#90f'})}
+    function spawnReaperShadowRain(){const rx=Math.random()*battleCanvas.width;bullets.push({x:rx,y:-10,vx:(Math.random()-.5)*2.5,vy:4*activeDiff.bulletSpeedMult,r:6,color:'#f06'})}
+    // 난이도별 전용 보스 패턴
+    function spawnSpread(count=5,spread=1.0,speed=3,color='#f66'){
+        const sx=Math.random()*battleCanvas.width, sy=-10, center=Math.atan2(playerPos.y-sy,playerPos.x-sx);
+        for(let i=0;i<count;i++){const a=center+(i-(count-1)/2)*spread/count;bullets.push({x:sx,y:sy,vx:Math.cos(a)*speed*activeDiff.bulletSpeedMult,vy:Math.sin(a)*speed*activeDiff.bulletSpeedMult,r:5,color})}
+    }
+    function spawnCross(){const s=3.4*activeDiff.bulletSpeedMult;const cx=battleCanvas.width/2,cy=battleCanvas.height/2;[[s,0],[-s,0],[0,s],[0,-s]].forEach(([vx,vy])=>bullets.push({x:cx,y:cy,vx,vy,r:6,color:'#ff7'}))}
+    function spawnFastCross(){const s=5.2*activeDiff.bulletSpeedMult;const cx=Math.random()*battleCanvas.width,cy=Math.random()*battleCanvas.height;for(let i=0;i<4;i++){const a=i*Math.PI/2+reaperAngle;bullets.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:6,color:'#f0f'})}reaperAngle+=.35}
+    function spawnGolemBurst(){const cx=battleCanvas.width/2,cy=battleCanvas.height/2,s=2.7*activeDiff.bulletSpeedMult;for(let i=0;i<14;i++){const a=i/14*Math.PI*2;bullets.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:7,color:'#fb4'})}}
+    function spawnReaperSpiral(){const cx=battleCanvas.width/2,cy=battleCanvas.height/2,s=2.8*activeDiff.bulletSpeedMult;for(let i=0;i<4;i++){const a=reaperAngle+i*Math.PI/2;bullets.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:6,color:'#c6f'})}reaperAngle+=.22}
+    function spawnExtremeRain(){for(let i=0;i<5;i++){const x=Math.random()*battleCanvas.width;bullets.push({x,y:-12,vx:(Math.random()-.5)*3,vy:(4.5+Math.random()*2)*activeDiff.bulletSpeedMult,r:5,color:'#fff'})}}
+    function makeDifficultyPatterns(boss){
+        const p=boss.patterns;
+        if(boss.id==='goblin') return {
+            EASY:[p[0],p[2]],
+            NORMAL:p,
+            HARD:[p[1],p[0],{fn:spawnSpread,intervalMult:.75}],
+            VERY_HARD:[{fn:spawnSpread,intervalMult:.55},p[1],{fn:spawnCross,intervalMult:.7}],
+            EXTREME:[{fn:spawnSpread,intervalMult:.38},{fn:spawnCross,intervalMult:.42},p[1],{fn:spawnExtremeRain,intervalMult:.5}]
+        };
+        if(boss.id==='wizard') return {
+            EASY:[p[0],p[2]],
+            NORMAL:p,
+            HARD:[p[0],p[1],{fn:spawnCross,intervalMult:.8}],
+            VERY_HARD:[p[2],{fn:spawnSpread,intervalMult:.55},p[1]],
+            EXTREME:[{fn:spawnFastCross,intervalMult:.38},p[2],{fn:spawnSpread,intervalMult:.45},p[0]]
+        };
+        if(boss.id==='skeleton') return {
+            EASY:[p[0],p[2]],
+            NORMAL:p,
+            HARD:[p[0],p[1],{fn:spawnSpread,intervalMult:.75}],
+            VERY_HARD:[p[1],p[2],{fn:spawnCross,intervalMult:.65}],
+            EXTREME:[p[0],{fn:spawnFastCross,intervalMult:.4},p[1],p[2]]
+        };
+        if(boss.id==='golem') return {
+            EASY:[p[2],p[0]],
+            NORMAL:p,
+            HARD:[p[0],p[2],{fn:spawnGolemBurst,intervalMult:.85}],
+            VERY_HARD:[{fn:spawnGolemBurst,intervalMult:.65},p[1],p[2]],
+            EXTREME:[{fn:spawnGolemBurst,intervalMult:.4},p[1],{fn:spawnExtremeRain,intervalMult:.45},p[0]]
+        };
+        return {
+            EASY:[p[1],p[2]],
+            NORMAL:p,
+            HARD:[p[0],p[1],{fn:spawnReaperSpiral,intervalMult:.65}],
+            VERY_HARD:[{fn:spawnReaperSpiral,intervalMult:.45},p[0],p[2]],
+            EXTREME:[{fn:spawnReaperSpiral,intervalMult:.28},{fn:spawnFastCross,intervalMult:.3},p[0],p[2],{fn:spawnExtremeRain,intervalMult:.35}]
+        };
+    }
+
+    const BOSSES={
+        goblin:{id:'goblin',name:'킹 고블린',sprite:'👑',baseHp:120,patterns:[{fn:spawnGoblinLaser,intervalMult:.9},{fn:spawnGoblinHoming,intervalMult:1.2},{fn:spawnGoblinRain,intervalMult:1.5}]},
+        wizard:{id:'wizard',name:'다크 위저드',sprite:'🧙',baseHp:140,patterns:[{fn:spawnWizardMagicCircle,intervalMult:.8},{fn:spawnWizardWave,intervalMult:.6},{fn:spawnWizardStarHoming,intervalMult:1.2}]},
+        skeleton:{id:'skeleton',name:'스켈레톤 나이트',sprite:'💀',baseHp:160,patterns:[{fn:spawnSkeletonBoneWall,intervalMult:1.6},{fn:spawnSkeletonBoneRing,intervalMult:1},{fn:spawnSkeletonCharge,intervalMult:.7}]},
+        golem:{id:'golem',name:'바위 골렘',sprite:'🗿',baseHp:180,patterns:[{fn:spawnGolemRockShards,intervalMult:1},{fn:spawnGolemEarthquake,intervalMult:1.5},{fn:spawnGolemRockBlast,intervalMult:.8}]},
+        reaper:{id:'reaper',name:'데빌 리퍼 (최종보스)',sprite:'👿',baseHp:300,patterns:[{fn:spawnReaperScytheSweep,intervalMult:.8},{fn:spawnReaperSoulHoming,intervalMult:.6},{fn:spawnReaperShadowRain,intervalMult:.4}]}
+    };
+    Object.values(BOSSES).forEach(b=>b.difficultyPatterns=makeDifficultyPatterns(b));
+    function updateAndDrawBattle(){bctx.clearRect(0,0,battleCanvas.width,battleCanvas.height);if(gameState==='DODGING'){
+        if(heartMode==='blue'){
+            if(keys.ArrowLeft||keys.a)playerPos.x-=4;
+            if(keys.ArrowRight||keys.d)playerPos.x+=4;
+            if((keys.ArrowUp||keys.w||keys[' '])&&!playerPos.jumpLock){playerPos.vy=-6.5;playerPos.jumpLock=true}
+            playerPos.vy=(playerPos.vy||0)+0.28;
+            playerPos.y+=playerPos.vy;
+            const floor=battleCanvas.height-playerPos.r-4;
+            if(playerPos.y>=floor){playerPos.y=floor;playerPos.vy=0;playerPos.jumpLock=false}
+            if(playerPos.y<=playerPos.r){playerPos.y=playerPos.r;playerPos.vy=0}
+            playerPos.x=Math.max(playerPos.r,Math.min(battleCanvas.width-playerPos.r,playerPos.x));
+            bctx.fillStyle='#08f';bctx.fillRect(0,battleCanvas.height-4,battleCanvas.width,4);
+        }
+        bctx.fillStyle=heartMode==='blue'?'#08f':'#f00';bctx.beginPath();bctx.arc(playerPos.x,playerPos.y,playerPos.r,0,Math.PI*2);bctx.fill();
+        for(let i=bullets.length-1;i>=0;i--){const b=bullets[i];b.x+=b.vx;b.y+=b.vy;bctx.fillStyle=b.color;bctx.beginPath();bctx.arc(b.x,b.y,b.r,0,Math.PI*2);bctx.fill();const dist=Math.hypot(playerPos.x-b.x,playerPos.y-b.y);if(dist<playerPos.r+b.r-2){takeDamage(activeDiff.bulletDamage||3);bullets.splice(i,1);continue}if(b.x<-20||b.x>battleCanvas.width+20||b.y<-20||b.y>battleCanvas.height+20)bullets.splice(i,1)}
+    }}
+    function endEnemyTurn(){clearAllTimers();if(gameState==='GAMEOVER'||gameState==='WIN')return;messageBox.style.display='block';messageBox.innerHTML='* '+selectedBoss.name+'의 눈빛이 매섭게 빛난다.';gameState='MENU'}
+    function takeDamage(amt){if(gameState==='GAMEOVER'||gameState==='WIN')return;if(adminTestMode){playerHp=Infinity;hpText.textContent='∞ / ∞';hpBarFill.style.width='100%';return;}playerHp=Math.max(0,playerHp-amt);hpBarFill.style.width=(playerHp/maxPlayerHp*100)+'%';hpText.textContent=playerHp+' / '+maxPlayerHp;if(playerHp<=0){gameState='GAMEOVER';clearAllTimers();document.getElementById('gameover-text').innerHTML='STAGE '+currentStage+'에서 전사했습니다.';gameoverOverlay.style.display='flex'}}
+    function doAct(){if(gameState!=='MENU')return;gameState='PROCESSING';messageBox.innerHTML='* '+selectedBoss.name+'을(를) 도발했다.<br>* "크하하! 내 공격을 견뎌낼 수 있겠느냐!"';setTimeout(startEnemyTurn,1800)}
+    function doItem(){if(gameState!=='MENU')return;gameState='PROCESSING';if(playerHp<maxPlayerHp){playerHp=Math.min(maxPlayerHp,playerHp+12);hpBarFill.style.width=(playerHp/maxPlayerHp*100)+'%';hpText.textContent=playerHp+' / '+maxPlayerHp;messageBox.innerHTML='* 회복 물약을 마셨다.<br>* HP가 12 회복되었다.'}else messageBox.innerHTML='* HP가 이미 가득 차있다!';setTimeout(startEnemyTurn,1800)}
+    function doMercy(){if(gameState!=='MENU')return;gameState='PROCESSING';messageBox.innerHTML='* 자비를 베풀었지만 보스는 힘을 끌어올린다!';setTimeout(startEnemyTurn,1800)}
+    function gameLoop(){if(mode==='FIELD')updateField();else if(mode==='BATTLE'){if(gameState==='DODGING'){if(keys.ArrowUp||keys.w)playerPos.y=Math.max(playerPos.r,playerPos.y-playerSpeed);if(keys.ArrowDown||keys.s)playerPos.y=Math.min(battleCanvas.height-playerPos.r,playerPos.y+playerSpeed);if(keys.ArrowLeft||keys.a)playerPos.x=Math.max(playerPos.r,playerPos.x-playerSpeed);if(keys.ArrowRight||keys.d)playerPos.x=Math.min(battleCanvas.width-playerPos.r,playerPos.x+playerSpeed)}updateAndDrawBattle()}requestAnimationFrame(gameLoop)}
+    gameLoop();
+});
+</script>
+</body>
+</html>

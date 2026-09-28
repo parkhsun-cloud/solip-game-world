@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>⚾ KBO / WBC 야구 게임</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #1a1a1a; color: white; text-align: center; margin: 0; padding: 10px; }
+        #game-container { display: flex; flex-direction: column; align-items: center; max-width: 950px; margin: 0 auto; }
+        .setup-panel { background: #2c3e50; padding: 15px; border-radius: 8px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
+        .year-selector { font-size: 20px; font-weight: bold; margin: 10px 0; }
+        button { padding: 8px 16px; font-size: 14px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; margin: 2px; }
+        button:hover { background: #c0392b; }
+        select { padding: 6px; font-size: 14px; }
+        #canvas-container { position: relative; display: inline-block; }
+        canvas { background-color: #27ae60; border: 4px solid #fff; border-radius: 4px; }
+        .side-info-panel { position: absolute; top: 15px; right: 15px; background: rgba(0, 0, 0, 0.85); border: 2px solid #f1c40f; border-radius: 8px; padding: 10px 14px; text-align: left; min-width: 130px; font-size: 13px; }
+        .side-info-title { font-size: 11px; color: #aaa; margin-bottom: 2px; }
+        .side-info-value { font-size: 16px; font-weight: bold; color: #2ecc71; margin-bottom: 8px; }
+        .side-info-timing { font-size: 15px; font-weight: bold; color: #f39c12; }
+        .bottom-right-bso { position: absolute; bottom: 15px; right: 15px; background: rgba(0, 0, 0, 0.85); border: 2px solid #3498db; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: bold; }
+        .mini-bso-row { display: flex; align-items: center; gap: 6px; margin: 3px 0; }
+        .mini-dot { width: 10px; height: 10px; border-radius: 50%; background: #444; border: 1px solid #111; }
+        .mini-dot.ball { background: #2ecc71; box-shadow: 0 0 5px #2ecc71; }
+        .mini-dot.strike { background: #f1c40f; box-shadow: 0 0 5px #f1c40f; }
+        .mini-dot.out { background: #e74c3c; box-shadow: 0 0 5px #e74c3c; }
+        .status-board { background: #34495e; width: 100%; padding: 12px; border-radius: 8px; margin-top: 10px; box-sizing: border-box; display: flex; justify-content: space-around; align-items: center; font-size: 14px; font-weight: bold; }
+        .control-panel { background: #2c3e50; width: 100%; padding: 15px; border-radius: 8px; margin-top: 10px; box-sizing: border-box; }
+        .grid-3x3 { display: grid; grid-template-columns: repeat(3, 45px); gap: 5px; justify-content: center; margin: 10px auto; }
+        .grid-btn { width: 45px; height: 45px; background: #7f8c8d; border: 1px solid #fff; color: white; cursor: pointer; font-size: 11px; }
+        .grid-btn.selected { background: #f1c40f; color: black; font-weight: bold; }
+        .subtitles-box { width: 100%; height: 120px; background: #000; color: #fff; overflow-y: auto; text-align: left; padding: 10px; border-radius: 6px; border: 2px solid #e74c3c; margin-top: 10px; box-sizing: border-box; font-size: 13px; line-height: 1.5; }
+        .caster-line { color: #f1c40f; font-weight: bold; }
+        .expert-line { color: #3498db; font-weight: bold; }
+        .cheer-box { background: #16a085; padding: 8px; margin-top: 5px; border-radius: 4px; font-weight: bold; width: 100%; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <h2>⚾ KBO / WBC 야구 게임</h2>
+    <div class="setup-panel" id="setup-panel">
+        <div class="year-selector">
+            <button onclick="changeYear(-1)">◀ 연도 감소</button>
+            <span id="year-display">2024</span>년 대표팀
+            <button onclick="changeYear(1)">연도 증가 ▶</button>
+        </div>
+        <div style="margin: 10px 0;">
+            <label><b>게임 난이도: </b></label>
+            <select id="difficulty-select" style="font-weight: bold; color: #e74c3c;">
+                <option value="very_easy" selected>매우 쉬움 (초보 추천)</option>
+                <option value="easy">쉬움</option>
+                <option value="normal">보통</option>
+                <option value="hard">어려움</option>
+                <option value="very_hard">매우 어려움</option>
+            </select>
+        </div>
+        <div style="margin: 10px 0;"><label>상대 국가: </label><select id="opp-country-select" onchange="updateRosterUI()"></select></div>
+        <div style="margin-top: 10px;"><label>선발 투수 선택: </label><select id="starter-select"></select></div>
+        <button onclick="startGame()" style="font-size: 18px; margin-top: 15px; background: #27ae60;">경기 시작</button>
+    </div>
+    <div class="status-board">
+        <div>이닝: <span id="inning-text">1회초</span></div>
+        <div>점수 - 🇰🇷 한국: <span id="my-score">0</span> | 상대: <span id="opp-score">0</span></div>
+        <div>투수: <span id="pitcher-name-text">-</span></div>
+        <div>타자: <span id="batter-name-text">-</span></div>
+    </div>
+    <div class="cheer-box" id="cheer-box">🎵 응원가: 경기 진행 중</div>
+    <div id="canvas-container">
+        <canvas id="field" width="750" height="440"></canvas>
+        <div class="side-info-panel">
+            <div class="side-info-title">⚡ 구속</div><div class="side-info-value" id="display-speed">- km/h</div>
+            <div class="side-info-title">🎯 타이밍</div><div class="side-info-timing" id="display-timing">-</div>
+        </div>
+        <div class="bottom-right-bso">
+            <div class="mini-bso-row"><span style="color:#2ecc71;">B</span><div class="mini-dot" id="mb1"></div><div class="mini-dot" id="mb2"></div><div class="mini-dot" id="mb3"></div></div>
+            <div class="mini-bso-row"><span style="color:#f1c40f;">S</span><div class="mini-dot" id="ms1"></div><div class="mini-dot" id="ms2"></div></div>
+            <div class="mini-bso-row"><span style="color:#e74c3c;">O</span><div class="mini-dot" id="mo1"></div><div class="mini-dot" id="mo2"></div></div>
+        </div>
+    </div>
+    <div class="subtitles-box" id="subtitles-box"><div>🎙️ 중계진 준비 완료...</div></div>
+    <div class="control-panel" id="control-panel">
+        <div id="role-select-box">
+            <b>공격 또는 수비 진행을 선택하세요</b><br><br>
+            <button onclick="setRole('pitcher')">수비(투수) 진행</button>
+            <button onclick="setRole('batter')">공격(타자) 진행</button>
+        </div>
+        <div id="pitcher-controls" style="display:none;">
+            <h4>[수비] 투구 구종 및 코스 선택</h4>
+            <select id="pitch-type-select">
+                <option value="fastball">직구 (4-Seam)</option>
+                <option value="slider">슬라이더 (Slider)</option>
+                <option value="curve">커브 (Curveball)</option>
+                <option value="changeup">체인지업 (Changeup)</option>
+            </select>
+            <div class="grid-3x3">
+                <button class="grid-btn p-btn" onclick="selectZone(0)">1</button><button class="grid-btn p-btn" onclick="selectZone(1)">2</button><button class="grid-btn p-btn" onclick="selectZone(2)">3</button>
+                <button class="grid-btn p-btn" onclick="selectZone(3)">4</button><button class="grid-btn p-btn selected" onclick="selectZone(4)">5</button><button class="grid-btn p-btn" onclick="selectZone(5)">6</button>
+                <button class="grid-btn p-btn" onclick="selectZone(6)">7</button><button class="grid-btn p-btn" onclick="selectZone(7)">8</button><button class="grid-btn p-btn" onclick="selectZone(8)">9</button>
+            </div>
+            <button onclick="startPitchSequence()" style="background:#2980b9;">투구하기</button>
+        </div>
+        <div id="batter-controls" style="display:none;">
+            <h4>[공격] 타격 노림 코스 선택 & 스윙</h4>
+            <div class="grid-3x3">
+                <button class="grid-btn b-btn" onclick="selectBatterZone(0)">1</button><button class="grid-btn b-btn" onclick="selectBatterZone(1)">2</button><button class="grid-btn b-btn" onclick="selectBatterZone(2)">3</button>
+                <button class="grid-btn b-btn" onclick="selectBatterZone(3)">4</button><button class="grid-btn b-btn selected" onclick="selectBatterZone(4)">5</button><button class="grid-btn b-btn" onclick="selectBatterZone(5)">6</button>
+                <button class="grid-btn b-btn" onclick="selectBatterZone(6)">7</button><button class="grid-btn b-btn" onclick="selectBatterZone(7)">8</button><button class="grid-btn b-btn" onclick="selectBatterZone(8)">9</button>
+            </div>
+            <button onclick="swingBat()" style="font-size: 18px; padding: 8px 24px; background:#e74c3c;">⚾ 스윙!!</button>
+            <button onclick="attemptBunt()" style="font-size: 18px; padding: 8px 24px; background:#f39c12;">🎯 번트 시도</button>
+        </div>
+    </div>
+</div>
+<script>
+let currentYear = 2024;
+const diffConfigs = {
+    very_easy: { speedStep: 0.012, hitMargin: 0.35, kmMin: 110, kmMax: 125 },
+    easy: { speedStep: 0.025, hitMargin: 0.25, kmMin: 125, kmMax: 138 },
+    normal: { speedStep: 0.045, hitMargin: 0.15, kmMin: 140, kmMax: 152 },
+    hard: { speedStep: 0.065, hitMargin: 0.09, kmMin: 148, kmMax: 158 },
+    very_hard: { speedStep: 0.085, hitMargin: 0.05, kmMin: 152, kmMax: 163 }
+};
+let currentDiff = diffConfigs.very_easy;
+const countriesData = [{ name: "🇯🇵 일본", key: "japan" }, { name: "🇺🇸 미국", key: "usa" }];
+
+function generateRoster(k) {
+    if (k === 'korea') {
+        return { 
+            starters: [{ name: "류현진" }, { name: "김광현" }], 
+            batters: [
+                { pos: "3루수", name: "김도영" }, { pos: "중견수", name: "이정후" }, { pos: "지명타자", name: "강백호" }, 
+                { pos: "포수", name: "양의지" }, { pos: "1루수", name: "이대호" }, { pos: "좌익수", name: "최형우" }, 
+                { pos: "2루수", name: "김혜성" }, { pos: "유격수", name: "박찬호" }, { pos: "우익수", name: "박해민" }
+            ] 
+        };
+    }
+    if (k === 'japan') {
+        return { 
+            starters: [{ name: "오타니" }, { name: "달비슈" }], 
+            batters: [
+                { pos: "중견수", name: "이치로" }, { pos: "우익수", name: "누트바" }, { pos: "지명타자", name: "오타니" }, 
+                { pos: "3루수", name: "무라카미" }, { pos: "1루수", name: "오카모토" }, { pos: "좌익수", name: "요시다" }, 
+                { pos: "2루수", name: "야마다" }, { pos: "유격수", name: "겐다" }, { pos: "포수", name: "나카무라" }
+            ] 
+        };
+    }
+    return { 
+        starters: [{ name: "커쇼" }, { name: "슈워버" }], 
+        batters: [
+            { pos: "무키 베츠", name: "베츠" }, { pos: "마이크 트라웃", name: "트라웃" }, { pos: "폴 골드슈미트", name: "골드슈미트" }, 
+            { pos: "놀란 아레나도", name: "아레나도" }, { pos: "카일 슈워버", name: "슈워버" }, { pos: "트레이 터너", name: "터너" }, 
+            { pos: "피트 알론소", name: "알론소" }, { pos: "JT 리얼무토", name: "리얼무토" }, { pos: "세드릭 멀린스", name: "멀린스" }
+        ] 
+    };
+}
+
+let gameState = { 
+    inning: 1, isTop: true, myScore: 0, oppScore: 0, outs: 0, balls: 0, strikes: 0, 
+    currentRole: null, selectedZone: 4, batterSelectedZone: 4, myTeam: null, oppTeam: null, 
+    myPitcher: null, oppPitcher: null, myBatterIdx: 0, oppBatterIdx: 0, runners: [false, false, false], 
+    isBatterEntering: false, batAngle: 0, isBunting: false 
+};
+let isPitching = false, ballProgress = 0, ballPos = { x: 375, y: 300 }, targetPos = { x: 375, y: 390 }, currentPitchType = "fastball", isSwung = false, pitchTimer = null;
+const canvas = document.getElementById('field'), ctx = canvas.getContext('2d');
+
+function broadcast(c, e) {
+    const b = document.getElementById('subtitles-box');
+    b.innerHTML += `<div style="margin-bottom: 5px; border-bottom: 1px solid #333;"><span class="caster-line">🎙️ [캐스터]:</span> "${c}"<br><span class="expert-line">👓 [해설]:</span> "${e}"</div>`;
+    b.scrollTop = b.scrollHeight;
+}
+
+function changeYear(d) { currentYear = Math.max(1982, Math.min(2026, currentYear + d)); document.getElementById('year-display').innerText = currentYear; }
+
+function initSetupUI() {
+    const s = document.getElementById('opp-country-select'); s.innerHTML = '';
+    countriesData.forEach(c => s.innerHTML += `<option value="${c.key}">${c.name}</option>`);
+    updateRosterUI();
+}
+
+function updateRosterUI() {
+    const r = generateRoster('korea'), s = document.getElementById('starter-select'); s.innerHTML = '';
+    r.starters.forEach((p, i) => s.innerHTML += `<option value="${i}">${p.name}</option>`);
+}
+
+function selectZone(i) { gameState.selectedZone = i; document.querySelectorAll('.p-btn').forEach((b, idx) => b.classList.toggle('selected', idx === i)); }
+function selectBatterZone(i) { gameState.batterSelectedZone = i; document.querySelectorAll('.b-btn').forEach((b, idx) => b.classList.toggle('selected', idx === i)); }
+
+function startGame() {
+    currentDiff = diffConfigs[document.getElementById('difficulty-select').value] || diffConfigs.very_easy;
+    gameState.myTeam = generateRoster('korea'); 
+    gameState.oppTeam = generateRoster(document.getElementById('opp-country-select').value);
+    gameState.myPitcher = gameState.myTeam.starters[document.getElementById('starter-select').value];
+    gameState.oppPitcher = gameState.oppTeam.starters[0];
+    document.getElementById('setup-panel').style.display = 'none';
+    broadcast("경기가 시작됩니다!", "즐거운 야구 경기가 되기를 기대합니다!");
+    startInning();
+}
+
+function getCurrentPitcher() { return gameState.isTop ? gameState.myPitcher : gameState.oppPitcher; }
+
+function startInning() {
+    if (pitchTimer) clearTimeout(pitchTimer);
+    gameState.outs = 0; gameState.balls = 0; gameState.strikes = 0; gameState.runners = [false, false, false]; gameState.isBatterEntering = false; isPitching = false;
+    document.getElementById('role-select-box').style.display = 'block';
+    document.getElementById('pitcher-controls').style.display = 'none'; document.getElementById('batter-controls').style.display = 'none';
+    updateBoard(); drawField();
+}
+
+function setRole(r) {
+    gameState.currentRole = r; document.getElementById('role-select-box').style.display = 'none';
+    if (r === 'pitcher') document.getElementById('pitcher-controls').style.display = 'block';
+    else { document.getElementById('batter-controls').style.display = 'block'; triggerNextBatterSequence(); }
+    drawField();
+}
+
+function getCurrentBatterName() { 
+    const t = gameState.isTop ? gameState.oppTeam : gameState.myTeam;
+    const idx = (gameState.isTop ? gameState.oppBatterIdx : gameState.myBatterIdx) % 9; 
+    const b = t.batters[idx]; 
+    return `${b.name} (${b.pos})`; 
+}
+
+function startPitchSequence() {
+    if (isPitching || gameState.isBatterEntering) return;
+    isPitching = true; isSwung = false; gameState.isBunting = false; ballProgress = 0; gameState.batAngle = 0;
+    if (gameState.currentRole === 'batter') { gameState.selectedZone = Math.floor(Math.random() * 9); currentPitchType = ["fastball", "slider", "curve", "changeup"][Math.floor(Math.random() * 4)]; }
+    else currentPitchType = document.getElementById('pitch-type-select').value;
+    
+    const zX = [360, 375, 390, 360, 375, 390, 360, 375, 390], zY = [380, 380, 380, 390, 390, 390, 400, 400, 400];
+    targetPos = { x: zX[gameState.selectedZone], y: zY[gameState.selectedZone] };
+    document.getElementById('display-speed').innerText = `${Math.round(currentDiff.kmMin + Math.random() * (currentDiff.kmMax - currentDiff.kmMin))} km/h`;
+    
+    function animate() {
+        ballProgress += currentDiff.speedStep; 
+        ballPos.x = 375 + (targetPos.x - 375) * ballProgress; 
+        ballPos.y = 300 + (targetPos.y - 300) * ballProgress;
+        if (isSwung && gameState.batAngle < Math.PI) gameState.batAngle += 0.35;
+        drawField();
+        if (ballProgress < 1) requestAnimationFrame(animate); else { isPitching = false; resolvePitchResult(); }
+    }
+    animate();
+}
+
+function swingBat() { if (!isPitching || isSwung || gameState.isBatterEntering) return; isSwung = true; gameState.isBunting = false; showTimingFeedback(Math.abs(ballProgress - 0.90) <= currentDiff.hitMargin ? "🎯 PERFECT HIT!" : (ballProgress < 0.90 ? "⚠️ TOO EARLY!" : "⚠️ TOO LATE!")); }
+function attemptBunt() { if (!isPitching || isSwung || gameState.isBatterEntering) return; isSwung = true; gameState.isBunting = true; showTimingFeedback("🎯 번트 시도!"); }
+function showTimingFeedback(m) { document.getElementById('display-timing').innerText = m; }
+
+function resolvePitchResult() {
+    const isBall = [0, 2, 6, 8].includes(gameState.selectedZone) && Math.random() > 0.3;
+    if (isSwung) {
+        if (gameState.isBunting) {
+            if (ballProgress >= 0.70) { broadcast("기습 번트 성공!", "수비진이 흔들립니다."); advanceRunners(1); nextBatter(); resetCount(); triggerNextBatterSequence(); }
+            else { broadcast("번트 파울!", "타격 타이밍이 아쉽습니다."); gameState.strikes++; if (gameState.strikes >= 3) processOut(); else triggerNextPitchIfActive(); }
+        } else {
+            let acc = Math.abs(ballProgress - 0.90), matched = (gameState.selectedZone === gameState.batterSelectedZone);
+            if (acc <= currentDiff.hitMargin || (gameState.currentRole === 'batter' && matched && acc <= currentDiff.hitMargin * 1.5)) handleHit(matched);
+            else { gameState.strikes++; broadcast("헛스윙 스트라이크!", "방망이가 허공을 찌릅니다."); if (gameState.strikes >= 3) { broadcast("삼진 아웃!!", "아쉽습니다."); processOut(); } else triggerNextPitchIfActive(); }
+        }
+    } else {
+        if (isBall) { gameState.balls++; broadcast("볼입니다.", "좋은 선구안입니다."); if (gameState.balls >= 4) processWalk(); else triggerNextPitchIfActive(); }
+        else { gameState.strikes++; broadcast("루킹 스트라이크!", "존 안으로 들어옵니다."); if (gameState.strikes >= 3) { broadcast("루킹 삼진 아웃!", "타자 가만히 서있습니다."); processOut(); } else triggerNextPitchIfActive(); }
+    }
+    updateBoard(); drawField();
+}
+
+function triggerNextPitchIfActive() { if (gameState.currentRole === 'batter' && gameState.outs < 3) pitchTimer = setTimeout(startPitchSequence, 1800); }
+function triggerNextBatterSequence() {
+    gameState.isBatterEntering = true; showTimingFeedback("타자 입장 중..."); drawField();
+    setTimeout(() => { gameState.isBatterEntering = false; showTimingFeedback("준비 완료"); drawField(); if (gameState.currentRole === 'batter') startPitchSequence(); }, 1200);
+}
+
+function handleHit(isPerfect = false) {
+    if (isPerfect) { showTimingFeedback("🔥 대형 홈런!!"); broadcast("담장을 넘어가는 홈런!!", "완벽한 타구입니다!"); advanceRunners(4); }
+    else { showTimingFeedback("⚾ 안타!!"); broadcast("안타!! 야구장 중심을 가릅니다!", "좋은 타격입니다!"); advanceRunners(1); }
+    nextBatter(); resetCount(); triggerNextBatterSequence();
+}
+
+function nextBatter() { if (gameState.isTop) gameState.oppBatterIdx++; else gameState.myBatterIdx++; }
+
+function advanceRunners(bases) {
+    for (let b = 0; b < bases; b++) {
+        if (gameState.runners[2]) {
+            if (gameState.isTop) gameState.oppScore++; else gameState.myScore++;
+            gameState.runners[2] = false;
+        }
+        if (gameState.runners[1]) { gameState.runners[2] = true; gameState.runners[1] = false; }
+        if (gameState.runners[0]) { gameState.runners[1] = true; gameState.runners[0] = false; }
+        if (b === 0) gameState.runners[0] = true;
+    }
+}
+
+function processOut() { gameState.outs++; nextBatter(); resetCount(); if (gameState.outs >= 3) { broadcast("3아웃, 공수 교대!", "이닝 종료."); nextInning(); } else triggerNextBatterSequence(); }
+function processWalk() { broadcast("볼넷 진루!", "출루를 만들어냅니다."); advanceRunners(1); nextBatter(); resetCount(); triggerNextBatterSequence(); }
+function resetCount() { gameState.balls = 0; gameState.strikes = 0; }
+function nextInning() { gameState.isTop = !gameState.isTop; if (gameState.isTop) gameState.inning++; startInning(); }
+
+function updateBoard() {
+    const p = getCurrentPitcher();
+    document.getElementById('inning-text').innerText = `${gameState.inning}회${gameState.isTop ? '초' : '말'}`;
+    document.getElementById('my-score').innerText = gameState.myScore; document.getElementById('opp-score').innerText = gameState.oppScore;
+    document.getElementById('pitcher-name-text').innerText = p ? p.name : '-'; document.getElementById('batter-name-text').innerText = getCurrentBatterName();
+    for (let i = 1; i <= 3; i++) document.getElementById(`mb${i}`).className = i <= gameState.balls ? "mini-dot ball" : "mini-dot";
+    for (let i = 1; i <= 2; i++) document.getElementById(`ms${i}`).className = i <= gameState.strikes ? "mini-dot strike" : "mini-dot";
+    for (let i = 1; i <= 2; i++) document.getElementById(`mo${i}`).className = i <= gameState.outs ? "mini-dot out" : "mini-dot";
+}
+
+function drawField() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#7f8c8d"; ctx.fillRect(0, 0, canvas.width, 40);
+    ctx.fillStyle = "#27ae60"; ctx.fillRect(0, 40, canvas.width, canvas.height - 40);
+    ctx.fillStyle = "#e67e22"; ctx.beginPath(); ctx.arc(375, 320, 115, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = gameState.runners[0] ? "#f1c40f" : "#fff"; ctx.fillRect(450, 300, 14, 14);
+    ctx.fillStyle = gameState.runners[1] ? "#f1c40f" : "#fff"; ctx.fillRect(368, 220, 14, 14);
+    ctx.fillStyle = gameState.runners[2] ? "#f1c40f" : "#fff"; ctx.fillRect(285, 300, 14, 14);
+    ctx.fillStyle = "#fff"; ctx.fillRect(368, 395, 14, 14);
+    const p = getCurrentPitcher();
+    ctx.fillStyle = "#f39c12"; ctx.beginPath(); ctx.arc(375, 300, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.fillText(`⚾ ${p ? p.name : '투수'}`, 375, 280);
+    if (!gameState.isBatterEntering) {
+        ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(340, 395, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.font = "bold 10px Arial"; ctx.fillText("타자", 322, 399);
+        ctx.save(); ctx.translate(345, 390);
+        ctx.rotate(gameState.isBunting ? Math.PI / 2 : -Math.PI / 4 + gameState.batAngle);
+        ctx.fillStyle = "#d35400"; ctx.fillRect(0, 0, 4, 22); ctx.restore();
+    } else { ctx.fillStyle = "#f1c40f"; ctx.font = "bold 13px Arial"; ctx.fillText("🚶‍♂️ 타자 타석 입장 중...", 340, 400); }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; ctx.lineWidth = 1.5;
+    for (let r = 0; r < 3; r++) {
+        for (let c = 0; c < 3; c++) {
+            let z = r * 3 + c, active = (gameState.currentRole === 'pitcher') ? gameState.selectedZone : gameState.batterSelectedZone;
+            if (z === active) { ctx.fillStyle = "rgba(241, 196, 15, 0.4)"; ctx.fillRect(352 + c * 15, 375 + r * 10, 15, 10); }
+            ctx.strokeRect(352 + c * 15, 375 + r * 10, 15, 10);
+        }
+    }
+    if (isPitching) { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ballPos.x, ballPos.y, 6, 0, Math.PI * 2); ctx.fill(); }
+}
+window.onload = () => { initSetupUI(); drawField(); };
+</script>
+</body>
+</html>
